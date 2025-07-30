@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String?
+  email      String   @unique
+  image      String?
+  bio        String?  @db.Text
+  location   String?
+  isPro      Boolean  @default(false)
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  skills               Skill[]
+  listings             Listing[]
+  messagesSent         Message[]     @relation("FromMessages")
+  messagesReceived     Message[]     @relation("ToMessages")
+  swapRequests         SwapRequest[] @relation("Requester")
+  swapRequestsReceived SwapRequest[] @relation("Recipient")
+
+  // Auth-related (optional)
+  accounts Account[]
+  sessions Session[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+
+  // Relations
+  fromUserId String
+  fromUser   User   @relation("FromMessages", fields: [fromUserId], references: [id])
+
+  toUserId String
+  toUser   User   @relation("ToMessages", fields: [toUserId], references: [id])
+
+  // Optional: Link to a swap request or listing
+  swapRequestId String?
+  swapRequest   SwapRequest? @relation(fields: [swapRequestId], references: [id])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  access_token      String?
+  refresh_token     String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String // "Web Design", "Plumbing"
+  description String?  @db.Text
+  category    String? // Optional: For grouping ("Home", "Tech", "Arts")
+  experience  Int? // Optional: Years or skill level
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userId   String
+  user     User      @relation(fields: [userId], references: [id])
+  listings Listing[] // Skills can be used in multiple listings
+}
+
+model Listing {
+  id          String   @id @default(cuid())
+  title       String // Short headline: "Offering Logo Design"
+  description String   @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Location/availability (optional MVP)
+  location     String? // City or zip
+  availability String? // e.g., "Weekends only", "Evenings after 5pm"
+
+  // Relations
+  userId  String
+  user    User    @relation(fields: [userId], references: [id])
+  skillId String?
+  skill   Skill?  @relation(fields: [skillId], references: [id])
+
+  // Swap request relations
+  offeredSwapRequests   SwapRequest[] @relation("OfferedListing")
+  requestedSwapRequests SwapRequest[] @relation("RequestedListing")
+}
+
+enum SwapStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
+model SwapRequest {
+  id        String   @id @default(cuid())
+  message   String   @db.Text // intro message or details of the proposal
+  status    SwapStatus @default(pending) // could be "pending", "accepted", "declined", "cancelled"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  requesterId String
+  requester   User   @relation("Requester", fields: [requesterId], references: [id])
+
+  recipientId String
+  recipient   User   @relation("Recipient", fields: [recipientId], references: [id])
+
+  offeredListingId String?
+  offeredListing   Listing? @relation("OfferedListing", fields: [offeredListingId], references: [id])
+
+  requestedListingId String?
+  requestedListing   Listing? @relation("RequestedListing", fields: [requestedListingId], references: [id])
+
+  // Messages related to this swap request
+  messages Message[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
