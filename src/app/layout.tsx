@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import Navbar from "@/components/ui/Navbar";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "TradeMySkills",
@@ -40,6 +41,7 @@ export default async function RootLayout({
           </header>
           <main className="max-w-5xl mx-auto p-6">{children}</main>
         </Providers>
+        <Toaster position="top-right" reverseOrder={false} />
       </body>
     </html>
   );
