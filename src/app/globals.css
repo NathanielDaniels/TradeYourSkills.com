@@ -64,6 +64,7 @@ input:focus, textarea:focus, select:focus {
   height: 0.5rem;
   position: relative;
   overflow: hidden;
+  --progress: 0%; /* Custom property for progress */
 }
 
 .upload-progress-bar-fill {

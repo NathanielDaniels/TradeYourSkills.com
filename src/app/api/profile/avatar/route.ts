@@ -2,6 +2,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { UTApi } from "uploadthing/server";
+
+const utapi = new UTApi();
 
 // Handle avatar upload (POST)
 export async function POST(req: Request) {
@@ -12,11 +15,27 @@ export async function POST(req: Request) {
     }
 
     const { url } = await req.json();
-    if (!url) {
+
+    if (!url || !url.startsWith("http")) {
       return NextResponse.json(
-        { error: "No avatar URL provided" },
+        { error: "Invalid avatar URL" },
         { status: 400 }
       );
+    }
+
+    // Get current avatar
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { avatar: true },
+    });
+
+    // If an old avatar exists and is hosted on UploadThing, delete it
+    if (user?.avatar?.startsWith("https://utfs.io/f/")) {
+      const oldFileKey = user.avatar.split("/").pop(); // Extract file key from URL
+      if (oldFileKey) {
+        await utapi.deleteFiles(oldFileKey);
+        console.log(`Deleted old avatar: ${oldFileKey}`);
+      }
     }
 
     // Update avatar in DB
