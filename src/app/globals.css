@@ -51,3 +51,24 @@ input:focus, textarea:focus, select:focus {
     box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
   }
 }
+
+/* Hide UploadThing label for the UploadButton */
+[data-ut-element="allowed-content"] {
+  display: none !important;
+}
+
+.upload-progress-bar-bg {
+  width: 100%;
+  background-color: #e5e7eb; /* Tailwind gray-200 */
+  border-radius: 0.25rem;
+  height: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-progress-bar-fill {
+  background-color: #2563eb; /* Tailwind blue-600 */
+  height: 100%;
+  border-radius: 0.25rem;
+  transition: width 0.2s ease;
+}
