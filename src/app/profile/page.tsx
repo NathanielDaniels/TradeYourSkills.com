@@ -1,6 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ConfirmModal from "@/components/ConfirmModal";
 import InputModal from "@/components/InputModal";
 import { toast } from "react-hot-toast";
@@ -23,11 +23,9 @@ export default function ProfilePage() {
   const [skillToRemove, setSkillToRemove] = useState<string | null>(null);
   const [addSkillOpen, setAddSkillOpen] = useState(false);
   const [hasOrderChanged, setHasOrderChanged] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string>(
-    session?.user?.image || "/default-avatar.png"
-  );
+  const [avatarUrl, setAvatarUrl] = useState<string>("/default-avatar.png");
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Fetch current avatar URL
   useEffect(() => {
@@ -35,7 +33,12 @@ export default function ProfilePage() {
       fetch("/api/profile/avatar")
         .then((res) => res.json())
         .then((data) => {
-          setAvatarUrl(data.avatar || "/default-avatar.png");
+          let avatar = data.avatar;
+          // If avatar is just a key, convert to full URL
+          if (avatar && !avatar.startsWith("http")) {
+            avatar = `https://utfs.io/f/${avatar}`;
+          }
+          setAvatarUrl(avatar || "/default-avatar.png");
         });
     }
   }, [session]);
@@ -87,8 +90,9 @@ export default function ProfilePage() {
           }}
           onClientUploadComplete={async (res) => {
             setProgress(null);
-            const url = res[0].key;
-            onAvatarUploaded(url);
+            const fileKey = res[0].key;
+            const fullUrl = `https://utfs.io/f/${fileKey}`;
+            onAvatarUploaded(fullUrl);
           }}
           onUploadError={(error) => {
             setProgress(null);
@@ -179,29 +183,6 @@ export default function ProfilePage() {
       toast.error("Error updating profile, Please try again.");
     }
   };
-
-  // const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const file = e.target.files?.[0];
-  //   if (!file) return;
-
-  //   const reader = new FileReader();
-  //   reader.onloadend = () => setAvatarPreview(reader.result as string);
-  //   reader.readAsDataURL(file);
-
-  //   const formData = new FormData();
-  //   formData.append("avatar", file);
-
-  //   const res = await fetch("/api/profile/avatar", {
-  //     method: "POST",
-  //     body: formData,
-  //   });
-
-  //   if (res.ok) {
-  //     toast.success("Avatar updated successfully!");
-  //   } else {
-  //     toast.error("Failed to upload avatar.");
-  //   }
-  // };
 
   const handleAddSkill = () => setAddSkillOpen(true);
 
