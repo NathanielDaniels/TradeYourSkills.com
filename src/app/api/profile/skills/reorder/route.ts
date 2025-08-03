@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Update each skill's order in the database
-    const updatePromises = itemIds
+    const updateOperations = itemIds
       .map((skillId: string, index: number) => ({ skillId, index }))
       .filter(({ skillId, index }) => skills[index]?.id !== skillId) // Only changed
       .map(({ skillId, index }) =>
@@ -44,8 +44,15 @@ export async function POST(req: NextRequest) {
           data: { order: index },
         })
       );
-
-    await Promise.all(updatePromises);
+        try {
+          await prisma.$transaction(updateOperations);
+        } catch (err) {
+          console.error("Transaction failed while reordering skills:", err);
+          return NextResponse.json(
+            { error: "Failed to update skill order" },
+            { status: 500 }
+          );
+        }
 
     return NextResponse.json({ success: true });
   } catch (error) {

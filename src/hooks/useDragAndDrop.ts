@@ -1,9 +1,15 @@
 import { useState } from "react";
 // import { toast } from "react-hot-toast";
 
+export interface ChangedItem {
+  id: string;
+  index: number;
+}
+
 interface UseDragAndDropProps<T> {
   items: T[];
-  onReorder: (newItems: T[]) => void;
+  // onReorder: (newItems: T[]) => void;
+  onReorder: (newItems: T[], changedItems: ChangedItem[]) => void;
   getItemId: (item: T) => string;
   // apiEndpoint?: string;
 }
@@ -17,8 +23,7 @@ export function useDragAndDrop<T>({
   items,
   onReorder,
   getItemId,
-}: // apiEndpoint,
-UseDragAndDropProps<T>) {
+}: UseDragAndDropProps<T>) {
   const [dragState, setDragState] = useState<DragState>({
     draggedItem: null,
     dragOverItem: null,
@@ -67,7 +72,8 @@ UseDragAndDropProps<T>) {
     const [movedItem] = newItems.splice(draggedIndex, 1);
     newItems.splice(targetIndex, 0, movedItem);
 
-    const changedItems = newItems
+    // const changedItems = newItems
+    const changedItems: ChangedItem[] = newItems
       .map((item, index) => ({
         id: getItemId(item),
         index,
@@ -80,7 +86,9 @@ UseDragAndDropProps<T>) {
     if (changedItems.length === 0) return;
 
     // Update immediately for smooth UX
-    onReorder(newItems);
+    // onReorder(newItems);
+    // Update immediately for smooth UX and inform caller about changes
+    onReorder(newItems, changedItems);
     setDragState({ draggedItem: null, dragOverItem: null });
   };
 

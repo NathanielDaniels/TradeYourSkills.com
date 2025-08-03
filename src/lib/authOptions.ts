@@ -1,11 +1,10 @@
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
 import EmailProvider from "next-auth/providers/email";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import type { Session } from "next-auth";
-import type { JWT } from "next-auth/jwt";
+import type { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     EmailProvider({
@@ -19,14 +18,22 @@ export const authOptions = {
   ],
   secret: process.env.NEXTAUTH_SECRET,
   session: {
-    strategy: "jwt" as const,
+    strategy: "jwt",
   },
   callbacks: {
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (token?.sub && session.user) {
+    async session({ session, token }) {
+      // Ensure user ID is added to session
+      if (session.user && token.sub) {
         session.user.id = token.sub;
       }
       return session;
+    },
+    async jwt({ token, user }) {
+      // Persist user ID in JWT for future sessions
+      if (user) {
+        token.sub = user.id;
+      }
+      return token;
     },
   },
 };
