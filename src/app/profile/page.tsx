@@ -1,10 +1,14 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ConfirmModal from "@/components/ConfirmModal";
 import InputModal from "@/components/InputModal";
 import { toast } from "react-hot-toast";
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import Image from "next/image";
+import { useDragAndDrop, type ChangedItem } from "@/hooks/useDragAndDrop";
+import { UploadButton } from "@uploadthing/react";
+import { type OurFileRouter } from "@/app/api/uploadthing/core";
+import ProgressBar from "@/components/ui/ProgressBar";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -19,6 +23,22 @@ export default function ProfilePage() {
   const [skillToRemove, setSkillToRemove] = useState<string | null>(null);
   const [addSkillOpen, setAddSkillOpen] = useState(false);
   const [hasOrderChanged, setHasOrderChanged] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>(
+    session?.user?.image || "/default-avatar.png"
+  );
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Fetch current avatar URL
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetch("/api/profile/avatar")
+        .then((res) => res.json())
+        .then((data) => {
+          setAvatarUrl(data.avatar || "/default-avatar.png");
+        });
+    }
+  }, [session]);
 
   // Fetch profile details
   useEffect(() => {
@@ -34,13 +54,68 @@ export default function ProfilePage() {
     }
   }, [session]);
 
-  // Drag and drop logic
-  const handleSkillsReorder = (newSkills: { id: string; name: string }[]) => {
-    setSkills(newSkills);
-    setHasOrderChanged(
-      JSON.stringify(newSkills.map((s) => s.id)) !==
-        JSON.stringify(originalSkills.map((s) => s.id))
+  const handleAvatarUpload = async (uploadedUrl: string) => {
+    const res = await fetch("/api/profile/avatar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: uploadedUrl }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setAvatarUrl(data.avatar || "/default-avatar.png");
+      toast.success("Avatar updated!");
+    } else {
+      toast.error("Failed to update avatar.");
+    }
+  };
+
+  function AvatarUploader({
+    onAvatarUploaded,
+  }: {
+    onAvatarUploaded: (url: string) => void;
+  }) {
+    const [progress, setProgress] = useState<number | null>(null);
+    return (
+      <div>
+        <UploadButton<OurFileRouter, "avatar">
+          endpoint="avatar"
+          appearance={{
+            button:
+              "px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700",
+            container: "",
+          }}
+          onClientUploadComplete={async (res) => {
+            setProgress(null);
+            const url = res[0].key;
+            onAvatarUploaded(url);
+          }}
+          onUploadError={(error) => {
+            setProgress(null);
+            toast.error(`Upload failed: ${error.message}`);
+          }}
+          onUploadProgress={(p) => setProgress(p)}
+        />
+        {progress !== null && (
+          <div className="mt-2 text-xs text-gray-500">
+            Uploading: {Math.round(progress * 100)}%
+            <ProgressBar progress={progress} />
+          </div>
+        )}
+      </div>
     );
+  }
+
+  // Drag and drop logic
+  const handleSkillsReorder = (
+    newSkills: { id: string; name: string }[],
+    _changedItems: ChangedItem[]
+  ) => {
+    setSkills(newSkills);
+    // Check if the order has changed
+    const originalOrder = originalSkills.map((s) => s.id).join(",");
+    const newOrder = newSkills.map((s) => s.id).join(",");
+    setHasOrderChanged(originalOrder !== newOrder);
   };
 
   const { getDragProps, getDragStyles } = useDragAndDrop({
@@ -86,15 +161,8 @@ export default function ProfilePage() {
     </div>
   );
 
-  // Wait for session to finish loading
-  if (session === undefined) {
-    return <Loading />;
-  }
-
-  // Redirect if not authenticated
-  if (!session) {
-    return <NotAuthenticated />;
-  }
+  if (session === undefined) return <Loading />;
+  if (!session) return <NotAuthenticated />;
 
   // Save bio & location
   const handleSave = async () => {
@@ -105,14 +173,37 @@ export default function ProfilePage() {
       body: JSON.stringify({ bio, location }),
     });
     setIsSaving(false);
-    res.ok
-      ? toast.success("Profile updated successfully!")
-      : toast.error("Error updating profile, Please try again.");
+    if (res.ok) {
+      toast.success("Profile updated successfully!");
+    } else {
+      toast.error("Error updating profile, Please try again.");
+    }
   };
 
-  const handleAddSkill = () => {
-    setAddSkillOpen(true);
-  };
+  // const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = e.target.files?.[0];
+  //   if (!file) return;
+
+  //   const reader = new FileReader();
+  //   reader.onloadend = () => setAvatarPreview(reader.result as string);
+  //   reader.readAsDataURL(file);
+
+  //   const formData = new FormData();
+  //   formData.append("avatar", file);
+
+  //   const res = await fetch("/api/profile/avatar", {
+  //     method: "POST",
+  //     body: formData,
+  //   });
+
+  //   if (res.ok) {
+  //     toast.success("Avatar updated successfully!");
+  //   } else {
+  //     toast.error("Failed to upload avatar.");
+  //   }
+  // };
+
+  const handleAddSkill = () => setAddSkillOpen(true);
 
   const confirmAddSkill = async (skillName: string) => {
     if (!skillName.trim()) return;
@@ -206,6 +297,28 @@ export default function ProfilePage() {
               Manage your profile information and skills
             </p>
           </header>
+
+          <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Profile Picture
+            </h2>
+            <div className="flex items-center gap-4">
+              <div className="relative w-20 h-20">
+                <Image
+                  src={avatarUrl}
+                  alt="Profile Avatar"
+                  fill
+                  className="rounded-full object-cover border border-gray-300"
+                />
+              </div>
+              <div>
+                <AvatarUploader onAvatarUploaded={handleAvatarUpload} />
+                <p className="text-xs text-gray-500 mt-1">
+                  JPG or PNG, max 4MB
+                </p>
+              </div>
+            </div>
+          </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <section
