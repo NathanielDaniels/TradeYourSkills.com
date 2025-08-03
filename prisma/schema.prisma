@@ -12,20 +12,25 @@ model User {
   name                 String?
   email                String        @unique
   image                String?
+  avatar               String?
   bio                  String?
   location             String?
+  city                 String?
+  state                String?
+  country              String?
+  profileVisible       Boolean       @default(true)
   isPro                Boolean       @default(false)
   isVerified           Boolean       @default(false)
   createdAt            DateTime      @default(now())
   emailVerified        DateTime?
-  accounts             Account[]
+  skills               Skill[]
   listings             Listing[]
   messagesSent         Message[]     @relation("FromMessages")
   messagesReceived     Message[]     @relation("ToMessages")
-  sessions             Session[]
-  skills               Skill[]
   swapRequestsReceived SwapRequest[] @relation("Recipient")
   swapRequests         SwapRequest[] @relation("Requester")
+  accounts             Account[]
+  sessions             Session[]
 }
 
 model Message {
