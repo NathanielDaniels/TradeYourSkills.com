@@ -9,6 +9,7 @@ interface InputModalProps {
   placeholder?: string;
   onConfirm: (value: string) => void;
   onCancel: () => void;
+  error?: string;
 }
 
 export default function InputModal({
@@ -18,6 +19,7 @@ export default function InputModal({
   placeholder = "Enter value...",
   onConfirm,
   onCancel,
+  error,
 }: InputModalProps) {
   const [inputValue, setInputValue] = useState("");
 
@@ -37,13 +39,9 @@ export default function InputModal({
     }
   };
 
-  const handleConfirm = async () => {
-    if (!inputValue.trim()) {
-      toast.error("Please enter a valid value!");
-      return;
-    }
-    await onConfirm(inputValue);
-    setInputValue(""); // Reset input field
+  const handleConfirm = () => {
+    onConfirm(inputValue);
+    if (!error) setInputValue(""); // Clear only if no error
   };
 
   const handleCancel = () => {
@@ -124,9 +122,15 @@ export default function InputModal({
               autoFocus
               required
               aria-describedby="input-help"
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200"
+              className={`w-full mt-4 px-4 py-2 rounded-lg border ${
+                error
+                  ? "border-red-500 focus:ring-red-500"
+                  : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+              } dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2`}
             />
           </fieldset>
+
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-3">
             <button

@@ -52,7 +52,10 @@ export async function POST(req: Request) {
       });
 
       if (existingSkill) {
-        throw new Error("You already have this skill");
+        return NextResponse.json(
+          { error: "Skill already exists" },
+          { status: 409 }
+        );
       }
 
       // Get the highest order number for this user's skills
