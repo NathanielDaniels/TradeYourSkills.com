@@ -10,7 +10,7 @@ const utapi = new UTApi();
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session || !session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -33,8 +33,12 @@ export async function POST(req: Request) {
     if (user?.avatar?.startsWith("https://utfs.io/f/")) {
       const oldFileKey = user.avatar.split("/").pop(); // Extract file key from URL
       if (oldFileKey) {
-        await utapi.deleteFiles(oldFileKey);
-        console.log(`Deleted old avatar: ${oldFileKey}`);
+        try {
+          await utapi.deleteFiles(oldFileKey);
+          console.log(`Deleted old avatar: ${oldFileKey}`);
+        } catch (error) {
+          console.error("Error deleting old avatar:", error);
+        }
       }
     }
 

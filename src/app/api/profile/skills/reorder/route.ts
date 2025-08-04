@@ -39,20 +39,20 @@ export async function POST(req: NextRequest) {
       .map((skillId: string, index: number) => ({ skillId, index }))
       .filter(({ skillId, index }) => skills[index]?.id !== skillId) // Only changed
       .map(({ skillId, index }) =>
-        prisma.skill.update({
+        prisma.skill.updateMany({
           where: { id: skillId, userId: user.id },
-          data: { order: index },
+          data: { order: index * 1000 },
         })
       );
-        try {
-          await prisma.$transaction(updateOperations);
-        } catch (err) {
-          console.error("Transaction failed while reordering skills:", err);
-          return NextResponse.json(
-            { error: "Failed to update skill order" },
-            { status: 500 }
-          );
-        }
+    try {
+      await prisma.$transaction(updateOperations);
+    } catch (err) {
+      console.error("Transaction failed while reordering skills:", err);
+      return NextResponse.json(
+        { error: "Failed to update skill order" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
