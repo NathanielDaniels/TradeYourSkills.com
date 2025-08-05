@@ -50,7 +50,6 @@ export default function AvatarUploader({
   };
 
   const handleUploadError = (error: Error) => {
-    console.error("Upload error:", error);
     setShowProgress(false);
     setProgress(null);
     setFeedback({
@@ -59,7 +58,6 @@ export default function AvatarUploader({
     });
     setTimeout(() => setFeedback(null), 3000);
   };
-  console.log("progress", progress);
   return (
     <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
       <div className="flex align-center">
@@ -90,6 +88,7 @@ export default function AvatarUploader({
             src={avatarUrl}
             alt="Profile Avatar"
             fill
+            sizes="80px"
             className="rounded-full object-cover border border-gray-300"
           />
         </div>
@@ -98,8 +97,12 @@ export default function AvatarUploader({
             endpoint="avatar"
             appearance={{
               button:
-                "px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700",
-              container: "",
+                "w-[120px] h-[36px] flex items-center justify-center px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed",
+            }}
+            content={{
+              button({ isUploading }) {
+                return isUploading ? "Uploading..." : "Upload Avatar";
+              },
             }}
             onUploadProgress={(p) => {
               setProgress(p);
@@ -119,7 +122,6 @@ export default function AvatarUploader({
                 className="mt-2 text-xs text-gray-500"
               >
                 Uploading: {Math.round(progress)}%
-                {/* <ProgressBar progress={progress} /> */}
               </motion.div>
             )}
           </AnimatePresence>
