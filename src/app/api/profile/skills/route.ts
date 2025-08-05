@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
-// import type { Prisma } from "@prisma/client";
 import type { TransactionClient } from "@/types/prisma";
 import { NextResponse } from "next/server";
 
@@ -25,10 +24,11 @@ export async function POST(req: Request) {
     // Use transaction to prevent race conditions and ensure data consistency
     const skill = await prisma.$transaction(async (tx: TransactionClient) => {
       // Get user and verify existence
-      const email =
-        typeof session.user?.email === "string"
-          ? session.user.email
-          : undefined;
+      const email = session.user.email;
+      // const email =
+      //   typeof session.user?.email === "string"
+      //     ? session.user.email
+      //     : undefined;
       if (!email) {
         throw new Error("User not found");
       }
@@ -126,12 +126,13 @@ export async function DELETE(req: Request) {
     }
 
     // Use transaction to ensure user owns the skill being deleted
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: TransactionClient) => {
+      const email = session.user.email;
       // Get user ID
-      const email =
-        typeof session.user?.email === "string"
-          ? session.user.email
-          : undefined;
+      // const email =
+      //   typeof session.user?.email === "string"
+      //     ? session.user.email
+      //     : undefined;
       if (!email) {
         throw new Error("User not found");
       }
