@@ -20,9 +20,14 @@ export async function POST(req: Request) {
     }
 
     const trimmedName = name.trim();
+    type TransactionClient = Parameters<typeof prisma.$transaction>[0] extends (
+      arg: infer U
+    ) => any
+      ? U
+      : never;
 
     // Use transaction to prevent race conditions and ensure data consistency
-    const skill = await prisma.$transaction(async (tx) => {
+    const skill = await prisma.$transaction(async (tx: TransactionClient) => {
       // Get user and verify existence
       const email =
         typeof session.user?.email === "string"
