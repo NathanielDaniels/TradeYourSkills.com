@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 // import type { Prisma } from "@prisma/client";
+import type { TransactionClient } from "@/types/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -20,11 +21,6 @@ export async function POST(req: Request) {
     }
 
     const trimmedName = name.trim();
-    type TransactionClient = Parameters<typeof prisma.$transaction>[0] extends (
-      arg: infer U
-    ) => any
-      ? U
-      : never;
 
     // Use transaction to prevent race conditions and ensure data consistency
     const skill = await prisma.$transaction(async (tx: TransactionClient) => {
