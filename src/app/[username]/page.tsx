@@ -2,11 +2,16 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 
-interface ProfilePageProps {
-  params: { username: string };
-}
+// interface ProfilePageProps {
+//   params: { username: string };
+// }
 
-export default async function UserProfilePage({ params }: ProfilePageProps) {
+// export default async function UserProfilePage({ params }: ProfilePageProps) {
+export default async function UserProfilePage({
+  params,
+}: {
+  params: { username: string };
+}) {
   const { username } = params;
 
   const user = await prisma.user.findUnique({
