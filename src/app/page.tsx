@@ -1,102 +1,131 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
-export default function Home() {
+export default function ComingSoonPage() {
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+  const [loading, setLoading] = useState(false);
+
+  function calculateTimeLeft(): Record<string, number> {
+    const launchDate = new Date("2025-09-30");
+    const difference = +launchDate - +new Date();
+    let timeLeft: Record<string, number> = {};
+    if (difference > 0) {
+      timeLeft = {
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((difference / 1000 / 60) % 60),
+        seconds: Math.floor((difference / 1000) % 60),
+      };
+    }
+    return timeLeft;
+  }
+
+  useEffect(() => {
+    const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    if (typeof grecaptcha === "undefined") {
+      toast.error("reCAPTCHA not ready. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Execute reCAPTCHA
+    grecaptcha.ready(async () => {
+      try {
+        const token = await grecaptcha.execute(
+          process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!,
+          { action: "submit" }
+        );
+
+        formData.append("g-recaptcha-response", token);
+
+        // Submit form to Formspree
+        const res = await fetch(form.action, {
+          method: "POST",
+          body: formData,
+          headers: { Accept: "application/json" },
+        });
+
+        if (res.ok) {
+          toast.success("You're on the list!");
+          form.reset();
+        } else {
+          toast.error("Submission failed. Please try again.");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("An unexpected error occurred.");
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white px-6 text-center relative overflow-hidden">
+      <div className="absolute inset-0 opacity-15 bg-[url('https://www.transparenttextures.com/patterns/geometry.png')] pointer-events-none" />
+      <h1 className="text-4xl md:text-6xl font-bold mb-3">
+        Trade Skills, Build Community
+      </h1>
+      <p className="text-lg md:text-2xl mb-8 font-light italic">
+        Your local Skill-swap network
+      </p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Countdown Timer */}
+      {Object.keys(timeLeft).length > 0 && (
+        <div className="flex space-x-4 mb-8">
+          {Object.entries(timeLeft).map(([unit, value]) => (
+            <div
+              key={unit}
+              className="flex flex-col items-center bg-white/10 px-4 py-3 rounded-lg"
+            >
+              <span className="text-3xl font-bold">{value}</span>
+              <span className="uppercase text-sm">{unit}</span>
+            </div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      )}
+
+      {/* Email Signup */}
+      <form
+        onSubmit={handleSubmit}
+        action="https://formspree.io/f/movlkddd"
+        method="POST"
+        className="flex flex-col sm:flex-row w-full max-w-md gap-3"
+        data-captcha="true"
+      >
+        <input
+          type="email"
+          name="email"
+          required
+          placeholder="Enter your email"
+          className="flex-1 px-4 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <button
+          type="submit"
+          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg font-semibold transition"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+          {loading ? "Submitting..." : "Notify Me"}
+        </button>
+      </form>
+
+      <p className="mt-4 text-sm text-white/80">
+        Be the first to join our beta and start swapping skills!
+      </p>
+
+      <footer className="absolute bottom-6 text-white/70 text-xs">
+        © {new Date().getFullYear()} TradeMySkills · Your local Skill-swap
+        network
       </footer>
     </div>
   );
