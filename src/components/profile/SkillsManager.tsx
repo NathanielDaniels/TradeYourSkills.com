@@ -4,6 +4,8 @@ import InputModal from "@/components/InputModal";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useSkillsManager } from "@/hooks/useSkillsManager";
 import { useValidation } from "@/hooks/useValidation";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Skill {
   id: string;
@@ -27,6 +29,7 @@ export default function SkillsManager({
     setAddSkillOpen,
     hasOrderChanged,
     isSaving,
+    feedback,
     deletingSkillId,
     confirmAddSkill,
     handleRemoveClick,
@@ -36,11 +39,25 @@ export default function SkillsManager({
   } = useSkillsManager(skills, onSkillsUpdate);
 
   const { errors } = useValidation();
+  const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(
+    null
+  );
+
   const { getDragProps, getDragStyles } = useDragAndDrop({
     items: localSkills,
     onReorder: handleReorder,
     getItemId: (skill) => skill.id,
   });
+
+  const onSaveOrderClick = async () => {
+    setSaveStatus(null);
+    const result = await handleSaveOrder();
+    if (result) setSaveStatus("success");
+    else setSaveStatus("error");
+
+    // Clear status message after 3 seconds
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
 
   return (
     <aside
@@ -71,41 +88,69 @@ export default function SkillsManager({
             Skills
           </h2>
         </div>
-        {hasOrderChanged && (
-          <button
-            onClick={handleSaveOrder}
-            disabled={isSaving}
-            className="px-3 py-1 text-sm rounded bg-blue-500 text-white disabled:bg-blue-300 flex items-center gap-2 transition-colors duration-200 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-500 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
-          >
-            {isSaving ? (
-              <>
-                <svg
-                  className="w-4 h-4 animate-spin text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
+        <div className="flex flex-col items-end">
+          {hasOrderChanged && (
+            <button
+              onClick={onSaveOrderClick}
+              disabled={isSaving}
+              className="px-3 py-1 text-sm rounded bg-blue-500 text-white disabled:bg-blue-300 flex items-center gap-2 transition-colors duration-200 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-500 shadow-sm hover:shadow-md disabled:cursor-not-allowed"
+            >
+              {isSaving ? (
+                <>
+                  <svg
+                    className="w-4 h-4 animate-spin text-white"
+                    fill="none"
                     stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8H4z"
-                  />
-                </svg>
-                Saving...
-              </>
-            ) : (
-              "Save Order"
-            )}
-          </button>
-        )}
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8H4z"
+                    />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                "Save Order"
+              )}
+            </button>
+          )}
+
+          {saveStatus === "success" && (
+            <span className="text-green-600 text-xs mt-1">Order saved!</span>
+          )}
+          {saveStatus === "error" && (
+            <span className="text-red-600 text-xs mt-1">
+              Failed to save order. Try again.
+            </span>
+          )}
+        </div>
+        <AnimatePresence>
+          {feedback && (
+            <motion.p
+              key="feedback"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.3 }}
+              className={`text-sm mb-3 ${
+                feedback.type === "success" ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {feedback.message}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
         <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
           {localSkills.length}
         </span>

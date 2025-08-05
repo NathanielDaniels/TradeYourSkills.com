@@ -5,7 +5,7 @@ export function useValidation() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateBio = (bio: string) => {
-    if (bio.length > 300) {
+    if (bio.length > 299) {
       setErrors((prev) => ({
         ...prev,
         bio: "Bio cannot exceed 300 characters.",

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useValidation } from "@/hooks/useValidation";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProfileInfoFormProps {
   bio: string;
@@ -21,7 +22,10 @@ export default function ProfileInfoForm({
 }: ProfileInfoFormProps) {
   const [localBio, setLocalBio] = useState(bio);
   const [localLocation, setLocalLocation] = useState(location);
-
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const { errors, validateBio, validateLocation } = useValidation();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,7 +35,19 @@ export default function ProfileInfoForm({
 
     if (!isBioValid || !isLocationValid) return;
 
-    await onSave(localBio, localLocation);
+    try {
+      await onSave(localBio, localLocation);
+      setFeedback({
+        type: "success",
+        message: "Profile updated successfully!",
+      });
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        message: "Failed to update profile. Try again.",
+      });
+    }
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   useEffect(() => {
@@ -71,6 +87,23 @@ export default function ProfileInfoForm({
         </h2>
       </header>
 
+      <AnimatePresence>
+        {feedback && (
+          <motion.p
+            key="feedback"
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.3 }}
+            className={`text-sm mb-3 ${
+              feedback.type === "success" ? "text-green-500" : "text-red-500"
+            }`}
+          >
+            {feedback.message}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       <form onSubmit={handleSubmit}>
         <fieldset className="space-y-6">
           <legend className="sr-only">Personal Information</legend>
@@ -102,8 +135,12 @@ export default function ProfileInfoForm({
             <textarea
               id="bio-input"
               value={localBio}
-              onChange={(e) => setLocalBio(e.target.value)}
+              onChange={(e) => {
+                setLocalBio(e.target.value);
+                validateBio(e.target.value);
+              }}
               placeholder="Tell others about yourself..."
+              maxLength={300}
               className={`w-full px-4 py-3 rounded-lg border ${
                 errors.bio
                   ? "border-red-500 focus:ring-red-500"
@@ -116,7 +153,14 @@ export default function ProfileInfoForm({
               want to trade
             </p>
             {errors.bio && (
-              <p className="text-red-500 text-xs mt-1">{errors.bio}</p>
+              <p className="text-red-500 text-xs mt-1 flex justify-end">
+                {errors.bio}
+              </p>
+            )}
+            {localBio.length > 1 && (
+              <p className="text-xs mt-1 text-gray-300 dark:text-gray-300 flex justify-end">
+                {300 - localBio.length} characters remaining
+              </p>
             )}
           </div>
           <div>

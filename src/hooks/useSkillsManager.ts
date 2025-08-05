@@ -20,6 +20,11 @@ export function useSkillsManager(
   const [isSaving, setIsSaving] = useState(false);
   const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
 
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
+
   useEffect(() => {
     setLocalSkills(initialSkills);
     setOriginalSkills(initialSkills);
@@ -27,36 +32,52 @@ export function useSkillsManager(
 
   const { errors, validateSkillName } = useValidation();
 
-  const confirmAddSkill = async (skillName: string) => {
-    if (!validateSkillName(skillName)) return;
+  const confirmAddSkill = async (skillName: string): Promise<boolean> => {
+    if (!validateSkillName(skillName)) return false;
+
     if (
       localSkills.some(
         (s) => s.name.toLowerCase() === skillName.trim().toLowerCase()
       )
     ) {
       toast.error(`"${skillName}" is already in your skills list.`);
-      return;
+      return false;
     }
     if (localSkills.length >= 10) {
       toast.error("You can only have up to 10 skills.");
-      return;
+      return false;
     }
-    const res = await fetch("/api/profile/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: skillName }),
-    });
-    if (res.ok) {
-      const newSkill = await res.json();
-      const updated = [...localSkills, newSkill];
-      setLocalSkills(updated);
-      setOriginalSkills(updated);
-      onSkillsUpdate(updated);
-      toast.success("Skill added!");
-    } else {
-      toast.error("Failed to add skill.");
+
+    try {
+      const res = await fetch("/api/profile/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: skillName }),
+      });
+
+      if (res.ok) {
+        const newSkill = await res.json();
+        const updated = [...localSkills, newSkill];
+        setLocalSkills(updated);
+        setOriginalSkills(updated);
+        onSkillsUpdate(updated);
+        toast.success("Skill added!");
+        setFeedback({ message: "Skill added successfully!", type: "success" });
+        return true;
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Failed to add skill.");
+        setFeedback({ message: errorData.error || "Failed to add skill.", type: "error" });
+        return false;
+      }
+    } catch (error) {
+      toast.error("Something went wrong while adding the skill.");
+      setFeedback({ message: "Something went wrong while adding the skill.", type: "error" });
+      return false;
+    } finally {
+      setAddSkillOpen(false);
+      setTimeout(() => setFeedback(null), 3000);
     }
-    setAddSkillOpen(false);
   };
 
   const handleRemoveClick = (skillId: string) => {
@@ -64,10 +85,10 @@ export function useSkillsManager(
     setConfirmOpen(true);
   };
 
-
   const confirmRemoveSkill = async () => {
-    if (!skillToRemove || deletingSkillId) return;
+    if (!skillToRemove || deletingSkillId) return false;
     setDeletingSkillId(skillToRemove);
+    setFeedback(null);
     try {
       const res = await fetch("/api/profile/skills", {
         method: "DELETE",
@@ -77,7 +98,12 @@ export function useSkillsManager(
 
       if (!res.ok) {
         const errorData = await res.json();
-        toast.error(errorData.error || "Failed to remove skill.");
+        const errorMessage = errorData.error || "Failed to remove skill.";
+        setFeedback({
+          message: errorMessage,
+          type: "error",
+        });
+        toast.error(errorMessage);
         return;
       }
 
@@ -86,32 +112,48 @@ export function useSkillsManager(
       setLocalSkills(updated);
       setOriginalSkills(updated);
       onSkillsUpdate(updated);
+      setFeedback({
+        message: "Skill removed successfully!",
+        type: "success",
+      });
       toast.success("Skill removed!");
+      return true;
     } catch (error) {
       console.error("Error deleting skill:", error);
+      setFeedback({
+        message: "Unexpected error deleting skill.",
+        type: "error",
+      });
       toast.error("Something went wrong while deleting the skill.");
+      return false;
     } finally {
       setConfirmOpen(false);
       setSkillToRemove(null);
       setDeletingSkillId(null);
+      setTimeout(() => setFeedback(null), 3000);
     }
   };
 
-  const handleSaveOrder = async () => {
+  const handleSaveOrder = async (): Promise<boolean> => {
     setIsSaving(true);
-    const res = await fetch("/api/profile/skills/reorder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemIds: localSkills.map((s) => s.id) }),
-    });
-    if (res.ok) {
-      setOriginalSkills(localSkills);
-      setHasOrderChanged(false);
-      toast.success("Order saved!");
-    } else {
-      toast.error("Failed to save order.");
+    try {
+      const res = await fetch("/api/profile/skills/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemIds: localSkills.map((s) => s.id) }),
+      });
+      if (res.ok) {
+        setOriginalSkills(localSkills);
+        setHasOrderChanged(false);
+        toast.success("Order saved!");
+        return true;
+      } else {
+        toast.error("Failed to save order.");
+        return false;
+      }
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleReorder = (newSkills: Skill[]) => {
@@ -131,6 +173,7 @@ export function useSkillsManager(
     hasOrderChanged,
     isSaving,
     deletingSkillId,
+    feedback,
     confirmAddSkill,
     handleRemoveClick,
     confirmRemoveSkill,
