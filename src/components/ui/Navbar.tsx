@@ -11,14 +11,14 @@ export default function NavBar() {
 
   if (status === "loading") {
     return (
-      <nav className="max-w-5xl mx-auto flex items-center justify-between p-4 border-b">
+      <nav className="max-w-full mx-auto flex items-center justify-between p-4 border-b">
         <p>Loading...</p>
       </nav>
     );
   }
 
   return (
-    <nav className="max-w-5xl mx-auto flex items-center justify-between p-4 border-b">
+    <nav className="max-w-full mx-auto flex items-center justify-between p-4 border-b">
       <Link href="/" className="font-bold text-xl">
         TradeMySkills
       </Link>
