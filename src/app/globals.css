@@ -8,7 +8,7 @@
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground)
+  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -26,13 +26,17 @@ body {
   font-family: "Roboto", Arial, Helvetica, sans-serif;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   background-color: #ffffff;
   color: #171717;
   border: 1px solid #d1d5db;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -40,13 +44,17 @@ input:focus, textarea:focus, select:focus {
 
 /* Dark mode form inputs */
 @media (prefers-color-scheme: dark) {
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     background-color: #374151;
     color: #f9fafb;
     border: 1px solid #4b5563;
   }
-  
-  input:focus, textarea:focus, select:focus {
+
+  input:focus,
+  textarea:focus,
+  select:focus {
     border-color: #60a5fa;
     box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
   }
