@@ -1,3 +1,0 @@
-{
-  "buildCommand": "NEXT_SKIP_TYPE_CHECK=true next build"
-}
