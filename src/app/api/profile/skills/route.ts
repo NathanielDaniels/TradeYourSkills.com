@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
-// import type { TransactionClient } from "@/types/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -20,17 +19,15 @@ export async function POST(req: Request) {
     }
 
     const trimmedName = name.trim();
-
+    const email = session.user.email;
     const skill = await prisma.$transaction(async (tx) => {
-      // Get user and verify existence
-      const email = session.user.email;
       // const email =
       //   typeof session.user?.email === "string"
       //     ? session.user.email
       //     : undefined;
-      if (!email) {
-        throw new Error("User not found");
-      }
+      // if (!email) {
+      //   throw new Error("User not found");
+      // }
 
       const user = await tx.user.findUnique({
         where: { email },
@@ -70,7 +67,19 @@ export async function POST(req: Request) {
       const newOrder = (lastSkill?.order || 0) + 1000;
 
       // Create the new skill
-      return await tx.skill.create({
+      // return await tx.skill.create({
+      //   data: {
+      //     name: trimmedName,
+      //     userId: user.id,
+      //     order: newOrder,
+      //   },
+      //   select: {
+      //     id: true,
+      //     name: true,
+      //     order: true,
+      //   },
+      // });
+      return tx.skill.create({
         data: {
           name: trimmedName,
           userId: user.id,
@@ -157,17 +166,18 @@ export async function DELETE(req: Request) {
       );
     }
 
+    const email = session.user.email;
+
     // Use transaction to ensure user owns the skill being deleted
     await prisma.$transaction(async (tx) => {
-      const email = session.user.email;
       // Get user ID
       // const email =
       //   typeof session.user?.email === "string"
       //     ? session.user.email
       //     : undefined;
-      if (!email) {
-        throw new Error("User not found");
-      }
+      // if (!email) {
+      //   throw new Error("User not found");
+      // }
 
       const user = await tx.user.findUnique({
         where: { email },
@@ -181,7 +191,7 @@ export async function DELETE(req: Request) {
       // Verify skill exists and belongs to user
       const skill = await tx.skill.findFirst({
         where: {
-          id: id,
+          id,
           userId: user.id,
         },
       });
@@ -190,9 +200,8 @@ export async function DELETE(req: Request) {
         throw new Error("Skill not found or access denied");
       }
 
-      // Delete the skill
       await tx.skill.delete({
-        where: { id: id },
+        where: { id },
       });
     });
 
