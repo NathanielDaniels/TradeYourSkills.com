@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // Use transaction to prevent race conditions and ensure data consistency
     //
 
-    const skill = await prisma.$transaction(async (tx: TransactionClient) => {
+    const skill = await prisma.$transaction(async (tx: any) => {
       const user = await tx.user.findUnique({
         where: { email: session.user.email },
         select: { id: true },
@@ -98,7 +98,7 @@ export async function DELETE(req: Request) {
     }
 
     // Use transaction to ensure user owns the skill being deleted
-    await prisma.$transaction(async (tx: TransactionClient) => {
+    await prisma.$transaction(async (tx: any) => {
       const email = session.user.email;
       // Get user ID
       // const email =
