@@ -22,66 +22,38 @@ export async function POST(req: Request) {
     const trimmedName = name.trim();
 
     // Use transaction to prevent race conditions and ensure data consistency
-    const skill = await prisma.$transaction(async (tx: TransactionClient) => {
-      // Get user and verify existence
-      const email = session.user.email;
-      // const email =
-      //   typeof session.user?.email === "string"
-      //     ? session.user.email
-      //     : undefined;
-      if (!email) {
-        throw new Error("User not found");
-      }
+    //
 
+    const skill = await prisma.$transaction(async (tx: TransactionClient) => {
       const user = await tx.user.findUnique({
-        where: { email },
+        where: { email: session.user.email },
         select: { id: true },
       });
 
-      if (!user) {
-        throw new Error("User not found");
-      }
+      if (!user) throw new Error("User not found");
 
-      // Check for duplicate skill names (optional - removes duplicates)
       const existingSkill = await tx.skill.findFirst({
         where: {
           userId: user.id,
-          name: {
-            equals: trimmedName,
-            mode: "insensitive", // Case-insensitive check
-          },
+          name: { equals: trimmedName, mode: "insensitive" },
         },
       });
 
-      if (existingSkill) {
-        return NextResponse.json(
-          { error: "Skill already exists" },
-          { status: 409 }
-        );
-      }
+      if (existingSkill) throw new Error("Skill exists");
 
-      // Get the highest order number for this user's skills
       const lastSkill = await tx.skill.findFirst({
         where: { userId: user.id },
         orderBy: { order: "desc" },
         select: { order: true },
       });
 
-      // Use larger increments (1000) to allow for future reordering
-      const newOrder = (lastSkill?.order || 0) + 1000;
-
-      // Create the new skill
-      return await tx.skill.create({
+      return tx.skill.create({
         data: {
           name: trimmedName,
           userId: user.id,
-          order: newOrder,
+          order: (lastSkill?.order || 0) + 1000,
         },
-        select: {
-          id: true,
-          name: true,
-          order: true,
-        },
+        select: { id: true, name: true, order: true },
       });
     });
 
