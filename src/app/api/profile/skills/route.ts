@@ -21,102 +21,101 @@ export async function POST(req: Request) {
 
     const trimmedName = name.trim();
 
-    // Use transaction to prevent race conditions and ensure data consistency
-    // const skill = await prisma.$transaction(async (tx: TransactionClient) => {
-    //   // Get user and verify existence
-    //   const email = session.user.email;
-    //   // const email =
-    //   //   typeof session.user?.email === "string"
-    //   //     ? session.user.email
-    //   //     : undefined;
-    //   if (!email) {
-    //     throw new Error("User not found");
-    //   }
+    const skill = await prisma.$transaction(async (tx) => {
+      // Get user and verify existence
+      const email = session.user.email;
+      // const email =
+      //   typeof session.user?.email === "string"
+      //     ? session.user.email
+      //     : undefined;
+      if (!email) {
+        throw new Error("User not found");
+      }
 
-    //   const user = await tx.user.findUnique({
-    //     where: { email },
-    //     select: { id: true },
-    //   });
-
-    //   if (!user) {
-    //     throw new Error("User not found");
-    //   }
-
-    //   // Check for duplicate skill names (optional - removes duplicates)
-    //   const existingSkill = await tx.skill.findFirst({
-    //     where: {
-    //       userId: user.id,
-    //       name: {
-    //         equals: trimmedName,
-    //         mode: "insensitive", // Case-insensitive check
-    //       },
-    //     },
-    //   });
-
-    //   if (existingSkill) {
-    //     return NextResponse.json(
-    //       { error: "Skill already exists" },
-    //       { status: 409 }
-    //     );
-    //   }
-
-    //   // Get the highest order number for this user's skills
-    //   const lastSkill = await tx.skill.findFirst({
-    //     where: { userId: user.id },
-    //     orderBy: { order: "desc" },
-    //     select: { order: true },
-    //   });
-
-    //   // Use larger increments (1000) to allow for future reordering
-    //   const newOrder = (lastSkill?.order || 0) + 1000;
-
-    //   // Create the new skill
-    //   return await tx.skill.create({
-    //     data: {
-    //       name: trimmedName,
-    //       userId: user.id,
-    //       order: newOrder,
-    //     },
-    //     select: {
-    //       id: true,
-    //       name: true,
-    //       order: true,
-    //     },
-    //   });
-    // });
-
-    const skill = await prisma.$transaction(async (tx: any) => {
       const user = await tx.user.findUnique({
-        where: { email: session.user.email },
+        where: { email },
         select: { id: true },
       });
 
-      if (!user) throw new Error("User not found");
+      if (!user) {
+        throw new Error("User not found");
+      }
 
+      // Check for duplicate skill names (optional - removes duplicates)
       const existingSkill = await tx.skill.findFirst({
         where: {
           userId: user.id,
-          name: { equals: trimmedName, mode: "insensitive" },
+          name: {
+            equals: trimmedName,
+            mode: "insensitive", // Case-insensitive check
+          },
         },
       });
 
-      if (existingSkill) throw new Error("Skill exists");
+      if (existingSkill) {
+        return NextResponse.json(
+          { error: "Skill already exists" },
+          { status: 409 }
+        );
+      }
 
+      // Get the highest order number for this user's skills
       const lastSkill = await tx.skill.findFirst({
         where: { userId: user.id },
         orderBy: { order: "desc" },
         select: { order: true },
       });
 
-      return tx.skill.create({
+      // Use larger increments (1000) to allow for future reordering
+      const newOrder = (lastSkill?.order || 0) + 1000;
+
+      // Create the new skill
+      return await tx.skill.create({
         data: {
           name: trimmedName,
           userId: user.id,
-          order: (lastSkill?.order || 0) + 1000,
+          order: newOrder,
         },
-        select: { id: true, name: true, order: true },
+        select: {
+          id: true,
+          name: true,
+          order: true,
+        },
       });
     });
+
+    // const skill = await prisma.$transaction(async (tx) => {
+    //   const user = await tx.user.findUnique({
+    //     where: { email: session.user.email },
+    //     select: { id: true },
+    //   });
+
+    //   if (!user) throw new Error("User not found");
+
+    //   const existingSkill = await tx.skill.findFirst({
+    //     where: {
+    //       userId: user.id,
+    //       name: { equals: trimmedName, mode: "insensitive" },
+    //     },
+    //   });
+
+    //   if (existingSkill) throw new Error("Skill exists");
+
+    //   const lastSkill = await tx.skill.findFirst({
+    //     where: { userId: user.id },
+    //     orderBy: { order: "desc" },
+    //     select: { order: true },
+    //   });
+
+    //   return tx.skill.create({
+    //     data: {
+    //       name: trimmedName,
+    //       userId: user.id,
+    //       order: (lastSkill?.order || 0) + 1000,
+    //     },
+    //     select: { id: true, name: true, order: true },
+    //   });
+    // });
 
     return NextResponse.json(skill);
   } catch (error) {
@@ -159,7 +158,7 @@ export async function DELETE(req: Request) {
     }
 
     // Use transaction to ensure user owns the skill being deleted
-    await prisma.$transaction(async (tx: any) => {
+    await prisma.$transaction(async (tx) => {
       const email = session.user.email;
       // Get user ID
       // const email =
