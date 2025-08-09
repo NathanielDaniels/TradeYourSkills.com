@@ -1,9 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+// import { PrismaClient } from "@prisma/client";
 
-// export type TransactionClient = Omit<
-//   PrismaClient,
-//   "$connect" | "$disconnect" | "$on" | "$transaction" | "$use"
-// >;
-export type TransactionClient = Parameters<
-  Parameters<PrismaClient["$transaction"]>[0]
->[0];
+// export type TransactionClient = Parameters<
+//   Exclude<Parameters<PrismaClient["$transaction"]>[0], undefined>
+// >[0];
