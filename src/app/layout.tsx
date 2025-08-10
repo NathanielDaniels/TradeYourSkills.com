@@ -32,9 +32,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <header className="bg-gray-800 text-white">
-            <Navbar />
-          </header>
+          <header className="bg-gray-800 text-white">{/* <Navbar /> */}</header>
           <main className="w-full min-h-full">{children}</main>
           <Toaster position="top-right" reverseOrder={false} />
         </Providers>
