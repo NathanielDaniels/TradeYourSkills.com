@@ -23,15 +23,29 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async session({ session, token }) {
       // Ensure user ID is added to session
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+      // if (session.user && token.sub) {
+      //   session.user.id = token.sub;
+      // }
+
+      if (session.user) {
+        if (token.sub) session.user.id = token.sub;
+        // propagate token picture to session user.image
+        // @ts-expect-error: user.image may be readonly in types
+        session.user.image =
+          ((token as any).picture as string) ?? session.user.image ?? null;
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       // Persist user ID in JWT for future sessions
-      if (user) {
-        token.sub = user.id;
+      if (user?.id) token.sub = user.id;
+
+      if (user && "image" in user) {
+        (token as any).picture = (user as any).image ?? (token as any).picture;
+      }
+
+      if (trigger === "update" && session?.image) {
+        (token as any).picture = session.image as string;
       }
       return token;
     },

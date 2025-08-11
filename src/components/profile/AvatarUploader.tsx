@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { UploadButton } from "@uploadthing/react";
 import { type OurFileRouter } from "@/app/api/uploadthing/core";
 // import ProgressBar from "@/components/ui/ProgressBar";
@@ -22,6 +23,7 @@ export default function AvatarUploader({
     message: string;
   } | null>(null);
   const [showProgress, setShowProgress] = useState(false);
+  const { update } = useSession();
 
   const handleUploadComplete = async (res: { key: string }[]) => {
     setProgress(null);
@@ -29,6 +31,9 @@ export default function AvatarUploader({
       const fileKey = res[0].key;
       const fullUrl = `https://utfs.io/f/${fileKey}`;
       await onUpload(fullUrl);
+      const cacheBusted = `${fullUrl}?t=${Date.now()}`;
+      await update({ image: cacheBusted });
+
       setFeedback({
         type: "success",
         message: "Avatar updated successfully!",

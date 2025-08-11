@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
         hostname: "utfs.io",
       },
     ],
+    formats: ["image/avif", "image/webp"],
   },
 };
 

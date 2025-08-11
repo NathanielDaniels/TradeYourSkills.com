@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
 export default function NavBar() {
   const { data: session, status } = useSession();
