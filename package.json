@@ -21,6 +21,7 @@
     "@sentry/nextjs": "^10.4.0",
     "@uploadthing/react": "^7.3.2",
     "framer-motion": "^12.23.12",
+    "import-in-the-middle": "^1.14.2",
     "next": "15.4.5",
     "next-auth": "^4.24.11",
     "nodemailer": "^6.9.11",
@@ -28,7 +29,8 @@
     "react-dom": "18.3.0",
     "react-hot-toast": "^2.5.2",
     "require-in-the-middle": "^7.5.2",
-    "uploadthing": "^7.7.3"
+    "uploadthing": "^7.7.3",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
