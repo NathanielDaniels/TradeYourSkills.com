@@ -4,15 +4,15 @@ import ProfileInfoForm from "@/components/profile/ProfileInfoForm";
 import SkillsManager from "@/components/profile/SkillsManager";
 import useProfileData from "@/hooks/useProfileData";
 import Link from "next/link";
+import UsernameClaimForm from "@/components/profile/UsernameClaimForm";
+import toast from "react-hot-toast";
 
 export default function ProfilePage() {
   const {
     session,
     status,
     bio,
-    // setBio,
     location,
-    // setLocation,
     skills,
     setSkills,
     avatarUrl,
@@ -21,7 +21,7 @@ export default function ProfilePage() {
     isSaving,
   } = useProfileData();
 
-  // ✅ Handle loading & authentication
+  // Handle loading & authentication
   if (status === "loading")
     return <p className="text-center py-10">Loading...</p>;
   if (status === "unauthenticated")
@@ -47,13 +47,26 @@ export default function ProfilePage() {
           </Link>
         </header>
 
-        <AvatarUploader avatarUrl={avatarUrl} onUpload={updateAvatar} />
-
+        <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+          <AvatarUploader avatarUrl={avatarUrl} onUpload={updateAvatar} />
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold mb-4">Username</h2>
+            <UsernameClaimForm
+              onClaim={(username) => {
+                console.log("Username claimed:", username);
+                toast.success(`Username @${username} claimed successfully!`, {
+                  duration: 4000,
+                  position: "top-center",
+                });
+              }}
+            />
+          </section>
+        </section>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
           <ProfileInfoForm
             bio={bio}
             location={location}
-            onSave={saveProfile} // directly from the hook
+            onSave={saveProfile}
             userName={session?.user?.name || ""}
             userEmail={session?.user?.email || ""}
             isSaving={isSaving}
