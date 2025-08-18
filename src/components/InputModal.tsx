@@ -10,6 +10,10 @@ interface InputModalProps {
   onConfirm: (value: string) => void;
   onCancel: () => void;
   error?: string;
+  isSubmitting?: boolean;
+  submitText?: string;
+  validationPattern?: string;
+  validationMessage?: string;
 }
 
 export default function InputModal({
@@ -20,31 +24,58 @@ export default function InputModal({
   onConfirm,
   onCancel,
   error,
+  isSubmitting = false,
+  submitText = "Add Skill",
+  validationPattern,
+  validationMessage,
 }: InputModalProps) {
   const [inputValue, setInputValue] = useState("");
-
+  const [validationError, setValidationError] = useState("");
   // Clear input when modal closes
   useEffect(() => {
     if (!isOpen) {
       setInputValue("");
+      setValidationError("");
     }
   }, [isOpen]);
 
+  const validateInput = (value: string) => {
+    if (validationPattern) {
+      const regex = new RegExp(validationPattern);
+      if (!regex.test(value)) {
+        setValidationError(validationMessage || "Invalid input format");
+        return false;
+      }
+    }
+    setValidationError("");
+    return true;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    if (value) validateInput(value);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && inputValue.trim()) {
+    if (e.key === "Enter" && inputValue.trim() && !isSubmitting) {
       handleConfirm();
     }
-    if (e.key === "Escape") {
+    if (e.key === "Escape" && !isSubmitting) {
       onCancel();
     }
   };
 
   const handleConfirm = () => {
-    onConfirm(inputValue);
-    if (!error) setInputValue(""); // Clear only if no error
+    if (!inputValue.trim()) return;
+    if (validationPattern && !validateInput(inputValue)) return;
+
+    onConfirm(inputValue.trim());
+    if (!error) setInputValue("");
   };
 
   const handleCancel = () => {
+    if (isSubmitting) return; // Prevent cancel during submission
     onCancel();
     toast("Action canceled", { icon: "⚪" });
     setInputValue("");
@@ -103,51 +134,60 @@ export default function InputModal({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleConfirm();
+            if (!isSubmitting) handleConfirm();
           }}
           className="mb-6"
         >
           <fieldset className="mb-6">
-            <legend className="sr-only">Enter skill information</legend>
-            <label htmlFor="skill-input" className="sr-only">
-              Skill name
+            <legend className="sr-only">Enter Information</legend>
+            <label htmlFor="input-value" className="sr-only">
+              Input Value
             </label>
             <input
-              id="skill-input"
+              id="modal-input"
               type="text"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyPress}
               placeholder={placeholder}
               autoFocus
               required
+              disabled={isSubmitting}
               aria-describedby="input-help"
               className={`w-full mt-4 px-4 py-2 rounded-lg border ${
-                error
+                error || validationError
                   ? "border-red-500 focus:ring-red-500"
                   : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-              } dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2`}
+              } dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed`}
             />
           </fieldset>
 
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+          {(error || validationError) && (
+            <p className="text-red-500 text-sm mt-2">
+              {error || validationError}
+            </p>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-3">
             <button
               type="button"
               onClick={handleCancel}
+              disabled={isSubmitting}
               className="flex-1 px-4 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-500"
-              aria-label="Cancel adding skill"
+              aria-label="Cancel action"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || isSubmitting || !!validationError}
               className="flex-1 px-4 py-2.5 rounded-lg font-medium text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-500 shadow-lg hover:shadow-xl disabled:shadow-none"
-              aria-label="Add new skill"
+              aria-label="confirm action"
             >
-              Add Skill
+              {isSubmitting && (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              {isSubmitting ? "Processing..." : submitText}
             </button>
           </div>
         </form>
