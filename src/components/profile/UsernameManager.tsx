@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import InputModal from "../InputModal";
 // import UsernameClaimForm from "./UsernameClaimForm";
-import { Edit2, Plus, User } from "lucide-react";
+import { Edit2, Plus, User, AtSign } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function UsernameManager() {
@@ -65,11 +65,11 @@ export default function UsernameManager() {
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-3">
-            <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <AtSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <h2
             id="username-heading"
-            className="text-lg font-semibold text-gray-900 dark:text-gray-100"
+            className="text-xl font-semibold text-gray-900 dark:text-gray-100"
           >
             Username
           </h2>

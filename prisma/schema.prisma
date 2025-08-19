@@ -37,15 +37,16 @@ model User {
 
 model Message {
   id            String       @id @default(cuid())
-  content       String
+  content       String       @db.VarChar(2000)
+  isBlocked     Boolean      @default(false)
   createdAt     DateTime     @default(now())
   read          Boolean      @default(false)
   fromUserId    String
   toUserId      String
   swapRequestId String?
-  fromUser      User         @relation("FromMessages", fields: [fromUserId], references: [id])
-  swapRequest   SwapRequest? @relation(fields: [swapRequestId], references: [id])
-  toUser        User         @relation("ToMessages", fields: [toUserId], references: [id])
+  fromUser      User         @relation("FromMessages", fields: [fromUserId], references: [id], onDelete: Cascade)
+  swapRequest   SwapRequest? @relation(fields: [swapRequestId], references: [id], onDelete: SetNull)
+  toUser        User         @relation("ToMessages", fields: [toUserId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -61,7 +62,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id])
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -77,8 +78,8 @@ model Listing {
   availability          String?
   userId                String
   skillId               String?
-  skill                 Skill?        @relation(fields: [skillId], references: [id])
-  user                  User          @relation(fields: [userId], references: [id])
+  skill                 Skill?        @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   offeredSwapRequests   SwapRequest[] @relation("OfferedListing")
   requestedSwapRequests SwapRequest[] @relation("RequestedListing")
 }
@@ -94,10 +95,10 @@ model SwapRequest {
   offeredListingId   String?
   requestedListingId String?
   messages           Message[]
-  offeredListing     Listing?   @relation("OfferedListing", fields: [offeredListingId], references: [id])
-  recipient          User       @relation("Recipient", fields: [recipientId], references: [id])
-  requestedListing   Listing?   @relation("RequestedListing", fields: [requestedListingId], references: [id])
-  requester          User       @relation("Requester", fields: [requesterId], references: [id])
+  offeredListing     Listing?   @relation("OfferedListing", fields: [offeredListingId], references: [id], onDelete: SetNull)
+  recipient          User       @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  requestedListing   Listing?   @relation("RequestedListing", fields: [requestedListingId], references: [id], onDelete: SetNull)
+  requester          User       @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
 }
 
 model Session {
@@ -105,7 +106,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -126,7 +127,7 @@ model Skill {
   order       Int      @default(0)
   userId      String
   listings    Listing[]
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum SwapStatus {
