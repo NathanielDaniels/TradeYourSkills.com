@@ -1,10 +1,10 @@
 "use client";
 import AvatarUploader from "@/components/profile/AvatarUploader";
 import ProfileInfoForm from "@/components/profile/ProfileInfoForm";
+import UsernameManager from "@/components/profile/UsernameManager";
 import SkillsManager from "@/components/profile/SkillsManager";
 import useProfileData from "@/hooks/useProfileData";
 import Link from "next/link";
-import UsernameManager from "@/components/profile/UsernameManager";
 
 export default function ProfilePage() {
   const {
@@ -20,7 +20,6 @@ export default function ProfilePage() {
     isSaving,
   } = useProfileData();
 
-  // Handle loading & authentication
   if (status === "loading")
     return <p className="text-center py-10">Loading...</p>;
   if (status === "unauthenticated")
@@ -46,26 +45,9 @@ export default function ProfilePage() {
           </Link>
         </header>
 
-        <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            {/* Left: Avatar Section */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Profile Picture
-              </h2>
-              <AvatarUploader avatarUrl={avatarUrl} onUpload={updateAvatar} />
-            </div>
-
-            {/* Right: Username Section */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-2">
-                Username
-              </h2>
-              <UsernameManager />
-            </div>
-          </div>
-        </section>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <AvatarUploader avatarUrl={avatarUrl} onUpload={updateAvatar} />
+          <UsernameManager />
           <ProfileInfoForm
             bio={bio}
             location={location}

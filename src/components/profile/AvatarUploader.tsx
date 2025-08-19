@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { UploadButton } from "@uploadthing/react";
 import { type OurFileRouter } from "@/app/api/uploadthing/core";
 import { motion, AnimatePresence } from "framer-motion";
+import { Camera } from "lucide-react";
 
 interface AvatarUploaderProps {
   avatarUrl: string;
@@ -63,30 +64,41 @@ export default function AvatarUploader({
     setTimeout(() => setFeedback(null), 3000);
   };
   return (
-    <section className="bg-white dark:bg-gray-800 rounded-xlp-6 mb-8">
-      <div className="flex align-center">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 mr-4">
-          Profile Picture
-        </h2>
-        <AnimatePresence>
-          {feedback && (
-            <motion.p
-              key="feedback"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className={`p-3 rounded-lg text-sm ${
-                feedback.type === "success"
-                  ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
-                  : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-              }`}
-            >
-              {feedback.message}
-            </motion.p>
-          )}
-        </AnimatePresence>
-      </div>
+    <section
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6"
+      aria-labelledby="avatar-heading"
+    >
+      <header className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-3">
+            <Camera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h2
+            id="avatar-heading"
+            className="text-xl font-semibold text-gray-900 dark:text-gray-100"
+          >
+            Profile Picture
+          </h2>
+        </div>
+      </header>
+      <AnimatePresence>
+        {feedback && (
+          <motion.p
+            key="feedback"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className={`p-3 rounded-lg text-sm ${
+              feedback.type === "success"
+                ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
+                : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+            }`}
+          >
+            {feedback.message}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       <div className="flex items-center gap-6">
         <div className="relative w-24 h-24 lg:w-32 lg:h-32">
