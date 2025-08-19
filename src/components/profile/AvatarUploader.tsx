@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { UploadButton } from "@uploadthing/react";
 import { type OurFileRouter } from "@/app/api/uploadthing/core";
-// import ProgressBar from "@/components/ui/ProgressBar";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface AvatarUploaderProps {
@@ -64,7 +63,7 @@ export default function AvatarUploader({
     setTimeout(() => setFeedback(null), 3000);
   };
   return (
-    <section className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+    <section className="bg-white dark:bg-gray-800 rounded-xlp-6 mb-8">
       <div className="flex align-center">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 mr-4">
           Profile Picture
@@ -73,12 +72,14 @@ export default function AvatarUploader({
           {feedback && (
             <motion.p
               key="feedback"
-              initial={{ opacity: 0, y: -5 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              className={`text-sm mb-3 ${
-                feedback.type === "success" ? "text-green-500" : "text-red-500"
+              className={`p-3 rounded-lg text-sm ${
+                feedback.type === "success"
+                  ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
+                  : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
               }`}
             >
               {feedback.message}
@@ -87,14 +88,14 @@ export default function AvatarUploader({
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20">
+      <div className="flex items-center gap-6">
+        <div className="relative w-24 h-24 lg:w-32 lg:h-32">
           <Image
             src={avatarUrl}
             alt="Profile Avatar"
             fill
-            sizes="80px"
-            className="rounded-full object-cover border border-gray-300"
+            sizes="(max-width: 1024px) 96px, 128px"
+            className="rounded-full object-cover border-2 border-gray-200 dark:border-gray-700 shadow-lg"
           />
         </div>
         <div>
@@ -102,11 +103,11 @@ export default function AvatarUploader({
             endpoint="avatar"
             appearance={{
               button:
-                "w-[120px] h-[36px] flex items-center justify-center px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed",
+                "w-full sm:w-auto px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
             }}
             content={{
               button({ isUploading }) {
-                return isUploading ? "Uploading..." : "Upload Avatar";
+                return isUploading ? "Uploading..." : "Change Avatar";
               },
             }}
             onUploadProgress={(p) => {
@@ -124,13 +125,24 @@ export default function AvatarUploader({
                 animate={{ opacity: progress === 1 ? 0 : 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="mt-2 text-xs text-gray-500"
+                className="mt-2 text-xs text-gray-500 space-y-1"
               >
-                Uploading: {Math.round(progress)}%
+                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <span>Uploading...</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                  <div
+                    className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
-          <p className="text-xs text-gray-500 mt-1">JPG or PNG, max 4MB</p>
+          <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">
+            JPG or PNG • Max 4MB
+          </p>
         </div>
       </div>
     </section>

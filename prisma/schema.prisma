@@ -23,6 +23,7 @@ model User {
   isPro                Boolean       @default(false)
   isVerified           Boolean       @default(false)
   createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
   emailVerified        DateTime?
   skills               Skill[]
   listings             Listing[]

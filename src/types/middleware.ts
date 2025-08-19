@@ -1,3 +1,5 @@
+//! This file locks the user from accessing certain routes while in "Coming Soon" mode
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
