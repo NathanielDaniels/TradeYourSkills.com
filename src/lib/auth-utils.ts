@@ -88,3 +88,69 @@ export async function verifyMessageAccess(messageId: string, userId: string) {
 
   return { authorized: true, error: null };
 }
+
+// Add this function to your existing auth-utils.ts
+export async function verifySwapRequestAccess(swapRequestId: string, userId: string) {
+  const swapRequest = await prisma.swapRequest.findUnique({
+    where: { id: swapRequestId },
+    select: { 
+      requesterId: true, 
+      recipientId: true,
+      status: true 
+    },
+  });
+
+  if (!swapRequest) {
+    return { 
+      authorized: false, 
+      error: NextResponse.json({ error: "Swap request not found" }, { status: 404 }) 
+    };
+  }
+
+  // User must be either requester or recipient
+  if (swapRequest.requesterId !== userId && swapRequest.recipientId !== userId) {
+    return { 
+      authorized: false, 
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) 
+    };
+  }
+
+  return { 
+    authorized: true, 
+    error: null,
+    swapRequest 
+  };
+}
+
+export async function verifySwapRequestResponse(swapRequestId: string, userId: string) {
+  const swapRequest = await prisma.swapRequest.findUnique({
+    where: { id: swapRequestId },
+    select: { 
+      recipientId: true,
+      status: true 
+    },
+  });
+
+  if (!swapRequest) {
+    return { 
+      authorized: false, 
+      error: NextResponse.json({ error: "Swap request not found" }, { status: 404 }) 
+    };
+  }
+
+  if (swapRequest.recipientId !== userId) {
+    return { 
+      authorized: false, 
+      error: NextResponse.json({ error: "Only the recipient can respond to this request" }, { status: 403 }) 
+    };
+  }
+
+  if (swapRequest.status !== "pending") {
+    return { 
+      authorized: false, 
+      error: NextResponse.json({ error: "This request has already been responded to" }, { status: 409 }) 
+    };
+  }
+
+  return { authorized: true, error: null };
+}

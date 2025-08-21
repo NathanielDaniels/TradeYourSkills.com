@@ -1,151 +1,134 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
-import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser, verifySkillOwnership } from "@/lib/auth-utils";
+import { generalApiLimit, getClientIP } from "@/lib/ratelimit";
+import { sanitizeText } from "@/lib/sanitize";
+import { skillCreateSchema, skillDeleteSchema } from "@/lib/validators";
+import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
+import type { Session } from "next-auth";
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const clientIP = getClientIP(request);
+  let user: Session["user"] | null = null;
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { success } = await generalApiLimit.limit(clientIP);
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const { name } = await req.json();
-    if (!name || name.trim() === "") {
+    const { user: authenticatedUser, error: authError } =
+      await getAuthenticatedUser(request);
+    if (authError) return authError;
+
+    user = authenticatedUser;
+
+    if (!user.id) {
       return NextResponse.json(
-        { error: "Skill name is required" },
+        { error: "Authentication failed" },
+        { status: 401 }
+      );
+    }
+
+    // Input validation and sanitization
+    const body = await request.json();
+
+    const sanitizedInput = {
+      name: body.name ? sanitizeText(body.name, 50) : body.name,
+      description: body.description
+        ? sanitizeText(body.description, 200)
+        : body.description,
+      category: body.category ? sanitizeText(body.category, 30) : body.category,
+      experience: body.experience,
+    };
+
+    const validatedData = skillCreateSchema.parse(sanitizedInput);
+
+    const skill = await prisma.$transaction(async (tx) => {
+        if (!user?.id) {
+          throw new Error("User authentication lost");
+        }
+      const existingSkill = await tx.skill.findFirst({
+        where: {
+          userId: user.id,
+          name: {
+            equals: validatedData.name,
+            mode: "insensitive",
+          },
+        },
+      });
+
+      if (existingSkill) {
+        throw new Error("You already have this skill");
+      }
+
+      // Get the highest order number for this user's skills
+      const lastSkill = await tx.skill.findFirst({
+        where: { userId: user.id },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+
+      // Use larger increments (1000) to allow for future reordering
+      const newOrder = (lastSkill?.order || 0) + 1000;
+
+      return tx.skill.create({
+        data: {
+          name: validatedData.name,
+          description: validatedData.description,
+          category: validatedData.category,
+          experience: validatedData.experience,
+          userId: user.id,
+          order: newOrder,
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          category: true,
+          experience: true,
+          order: true,
+        },
+      });
+    });
+    console.log(`Skill created: ${user.id} - ${validatedData.name}`);
+    Sentry.addBreadcrumb({
+      message: "Skill created",
+      category: "skill",
+      level: "info",
+      data: { userId: user.id, skillName: validatedData.name },
+    });
+    return NextResponse.json(skill);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const issues = error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      }));
+      return NextResponse.json(
+        { error: "Invalid input data", details: issues },
         { status: 400 }
       );
     }
 
-    const trimmedName = name.trim();
-    const email = session.user.email;
-    const skill = await prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        // const email =
-        //   typeof session.user?.email === "string"
-        //     ? session.user.email
-        //     : undefined;
-        // if (!email) {
-        //   throw new Error("User not found");
-        // }
-
-        const user = await tx.user.findUnique({
-          where: { email },
-          select: { id: true },
-        });
-
-        if (!user) {
-          throw new Error("User not found");
-        }
-
-        // Check for duplicate skill names (optional - removes duplicates)
-        const existingSkill = await tx.skill.findFirst({
-          where: {
-            userId: user.id,
-            name: {
-              equals: trimmedName,
-              mode: "insensitive", // Case-insensitive check
-            },
-          },
-        });
-
-        if (existingSkill) {
-          return NextResponse.json(
-            { error: "Skill already exists" },
-            { status: 409 }
-          );
-        }
-
-        // Get the highest order number for this user's skills
-        const lastSkill = await tx.skill.findFirst({
-          where: { userId: user.id },
-          orderBy: { order: "desc" },
-          select: { order: true },
-        });
-
-        // Use larger increments (1000) to allow for future reordering
-        const newOrder = (lastSkill?.order || 0) + 1000;
-
-        // Create the new skill
-        // return await tx.skill.create({
-        //   data: {
-        //     name: trimmedName,
-        //     userId: user.id,
-        //     order: newOrder,
-        //   },
-        //   select: {
-        //     id: true,
-        //     name: true,
-        //     order: true,
-        //   },
-        // });
-        return tx.skill.create({
-          data: {
-            name: trimmedName,
-            userId: user.id,
-            order: newOrder,
-          },
-          select: {
-            id: true,
-            name: true,
-            order: true,
-          },
-        });
-      }
-    );
-
-    // const skill = await prisma.$transaction(async (tx) => {
-    //   const user = await tx.user.findUnique({
-    //     where: { email: session.user.email },
-    //     select: { id: true },
-    //   });
-
-    //   if (!user) throw new Error("User not found");
-
-    //   const existingSkill = await tx.skill.findFirst({
-    //     where: {
-    //       userId: user.id,
-    //       name: { equals: trimmedName, mode: "insensitive" },
-    //     },
-    //   });
-
-    //   if (existingSkill) throw new Error("Skill exists");
-
-    //   const lastSkill = await tx.skill.findFirst({
-    //     where: { userId: user.id },
-    //     orderBy: { order: "desc" },
-    //     select: { order: true },
-    //   });
-
-    //   return tx.skill.create({
-    //     data: {
-    //       name: trimmedName,
-    //       userId: user.id,
-    //       order: (lastSkill?.order || 0) + 1000,
-    //     },
-    //     select: { id: true, name: true, order: true },
-    //   });
-    // });
-
-    return NextResponse.json(skill);
-  } catch (error) {
-    console.error("Error creating skill:", error);
-
-    // Handle specific known errors
-    if (error instanceof Error) {
-      if (error.message === "User not found") {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
-      if (error.message === "You already have this skill") {
-        return NextResponse.json(
-          { error: "You already have this skill" },
-          { status: 409 }
-        );
-      }
+    if (
+      error instanceof Error &&
+      error.message === "You already have this skill"
+    ) {
+      return NextResponse.json(
+        { error: "You already have this skill" },
+        { status: 409 }
+      );
     }
-
+    console.error("Skill creation error:", error);
+    Sentry.captureException(error, {
+      tags: {
+        area: "skill-creation",
+        ip: clientIP,
+        userId: user?.id,
+      },
+    });
     return NextResponse.json(
       { error: "Failed to create skill" },
       { status: 500 }
@@ -153,74 +136,63 @@ export async function POST(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(request: Request) {
+  const clientIP = getClientIP(request);
+  let user: Session["user"] | null = null;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { success } = await generalApiLimit.limit(clientIP);
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const { id } = await req.json();
+    // Authentication
+    const { user: authenticatedUser, error: authError } =
+      await getAuthenticatedUser(request);
+    if (authError) return authError;
 
-    if (!id) {
+    user = authenticatedUser;
+
+    if (!user?.id) {
       return NextResponse.json(
-        { error: "Skill ID is required" },
-        { status: 400 }
+        { error: "Authentication failed" },
+        { status: 401 }
       );
     }
 
-    const email = session.user.email;
+    // Input validation
+    const body = await request.json();
+    const { id } = skillDeleteSchema.parse(body);
 
-    // Use transaction to ensure user owns the skill being deleted
-    await prisma.$transaction(async (tx) => {
-      // Get user ID
-      // const email =
-      //   typeof session.user?.email === "string"
-      //     ? session.user.email
-      //     : undefined;
-      // if (!email) {
-      //   throw new Error("User not found");
-      // }
+    // Verify ownership and delete
+    const { error: ownershipError } = await verifySkillOwnership(id, user.id);
+    if (ownershipError) return ownershipError;
 
-      const user = await tx.user.findUnique({
-        where: { email },
-        select: { id: true },
-      });
-
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      // Verify skill exists and belongs to user
-      const skill = await tx.skill.findFirst({
-        where: {
-          id,
-          userId: user.id,
-        },
-      });
-
-      if (!skill) {
-        throw new Error("Skill not found or access denied");
-      }
-
-      await tx.skill.delete({
-        where: { id },
-      });
+    await prisma.skill.delete({
+      where: { id },
     });
 
+    console.log(`Skill deleted: ${user.id} - ${id}`);
+    Sentry.addBreadcrumb({
+      message: "Skill deleted",
+      category: "skill",
+      level: "info",
+      data: { userId: user.id, skillId: id },
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting skill:", error);
-
-    if (error instanceof Error) {
-      if (error.message === "User not found") {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
-      if (error.message === "Skill not found or access denied") {
-        return NextResponse.json({ error: "Skill not found" }, { status: 404 });
-      }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Invalid input data", details: error.issues },
+        { status: 400 }
+      );
     }
-
+    Sentry.captureException(error, {
+      tags: {
+        area: "skill-deletion",
+        ip: clientIP,
+        userId: user?.id,
+      },
+    });
     return NextResponse.json(
       { error: "Failed to delete skill" },
       { status: 500 }
