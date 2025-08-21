@@ -53,15 +53,13 @@ export const listingCreateSchema = z.object({
     .max(200, "Availability must be less than 200 characters")
     .optional()
     .nullable(),
-  skillId: z
-    .string()
-    .min(1, "Skill is required"),
-  isActive: z
-    .boolean()
-    .default(true),
+  skillId: z.string().min(1, "Skill is required"),
+  isActive: z.boolean().default(true),
 });
 
-export const listingUpdateSchema = listingCreateSchema.partial().omit({ skillId: true });
+export const listingUpdateSchema = listingCreateSchema
+  .partial()
+  .omit({ skillId: true });
 
 export const listingDeleteSchema = z.object({
   id: z.string().min(1, "Listing ID is required"),
@@ -70,4 +68,33 @@ export const listingDeleteSchema = z.object({
 export const listingStatusSchema = z.object({
   id: z.string().min(1, "Listing ID is required"),
   isActive: z.boolean(),
+});
+
+// Swap request schemas
+export const swapRequestCreateSchema = z.object({
+  message: z
+    .string()
+    .min(10, "Message must be at least 10 characters")
+    .max(500, "Message must be less than 500 characters")
+    .trim(),
+  recipientId: z.string().min(1, "Recipient is required"),
+  offeredListingId: z
+    .string()
+    .min(1, "Offered listing is required")
+    .optional()
+    .nullable(),
+  requestedListingId: z.string().min(1, "Requested listing is required"),
+});
+
+export const swapRequestResponseSchema = z.object({
+  status: z.enum(["accepted", "declined"]),
+  responseMessage: z
+    .string()
+    .max(300, "Response message must be less than 300 characters")
+    .optional()
+    .nullable(),
+});
+
+export const swapRequestStatusSchema = z.object({
+  status: z.enum(["pending", "accepted", "declined", "cancelled"]),
 });

@@ -4,7 +4,7 @@ import { Redis } from "@upstash/redis";
 // Different rate limits for different operations
 export const usernameRateLimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(3, "60 s"), // 3 username changes per minute
+  limiter: Ratelimit.slidingWindow(2, "30 d"), // 2 username changes per 30 days
   analytics: true,
 });
 
