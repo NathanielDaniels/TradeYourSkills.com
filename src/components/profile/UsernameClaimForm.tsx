@@ -1,200 +1,219 @@
+// src/components/profile/UsernameClaimForm.tsx
 "use client";
 
-import { useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
-import * as Sentry from "@sentry/nextjs";
+import { useState, useEffect, useMemo } from 'react';
+import { useUsername } from '@/hooks/useUsername';
+import { Loader2, Check, X, AlertCircle, Clock } from 'lucide-react';
 
 interface UsernameClaimFormProps {
-  onClaim?: (username: string) => void;
+  onSuccess?: (username: string) => void;
+  onCancel?: () => void;
 }
 
-const MAX_LEN = 20;
-const MIN_LEN = 3;
-const USERNAME_RE = /^[a-z0-9]+$/; // lowercase letters and digits only
+export default function UsernameClaimForm({ onSuccess, onCancel }: UsernameClaimFormProps) {
+  const [rawInput, setRawInput] = useState('');
+  const [debouncedInput, setDebouncedInput] = useState('');
+  
+  const {
+    validation,
+    rateLimit,
+    isSubmitting,
+    validateUsername,
+    sanitizeUsername,
+    checkAvailability,
+    claimUsername,
+    currentUsername,
+    hasUsername,
+  } = useUsername();
 
-function normalizeUsername(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, MAX_LEN);
-}
+  // Debounce input for availability checking
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedInput(rawInput);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [rawInput]);
 
-function validateUsername(username: string): string | null {
-  if (!username) return "Username is required.";
-  if (username.length < MIN_LEN)
-    return `Username must be at least ${MIN_LEN} characters.`;
-  if (username.length > MAX_LEN)
-    return `Username must be at most ${MAX_LEN} characters.`;
-  if (!USERNAME_RE.test(username))
-    return "Only lowercase letters and numbers are allowed.";
-  return null;
-}
+  // Check availability when debounced input changes
+  useEffect(() => {
+    if (debouncedInput && debouncedInput !== currentUsername) {
+      checkAvailability(debouncedInput);
+    }
+  }, [debouncedInput, currentUsername, checkAvailability]);
 
-export default function UsernameClaimForm({ onClaim }: UsernameClaimFormProps) {
-  const [username, setUsername] = useState("");
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { update } = useSession();
+  const sanitized = useMemo(() => sanitizeUsername(rawInput), [rawInput, sanitizeUsername]);
+  const validationError = useMemo(() => validateUsername(sanitized), [sanitized, validateUsername]);
+  const isValid = !validationError && sanitized.length >= 3;
 
-  const normalized = useMemo(() => normalizeUsername(username), [username]);
-  const validationError = useMemo(
-    () => validateUsername(normalized),
-    [normalized]
-  );
-  const canSubmit = !validationError && !!normalized && !isSubmitting;
-
-  const hasError = Boolean(validationError || submitError);
-  const describedBy = hasError
-    ? "username-help username-error"
-    : "username-help";
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    const sanitized = sanitizeUsername(input);
+    setRawInput(sanitized);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError(null);
+    
+    if (!isValid || isSubmitting) return;
 
-    // Ensure we submit the normalized/validated value
-    const desired = normalized;
-    const clientError = validateUsername(desired);
-    if (clientError) {
-      setSubmitError(clientError);
-      return;
-    }
-
-    const isDev = process.env.NODE_ENV !== "production";
-    function logWarn(...args: any[]) {
-      if (isDev) console.warn(...args);
-    }
-    try {
-      setIsSubmitting(true);
-      const res = await fetch("/api/profile/username/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: desired }),
-      });
-      if (!res.ok) {
-        let message = "Something went wrong";
-        try {
-          const data = await res.json();
-          message = data?.error ?? message;
-        } catch (e) {
-          logWarn("[username-claim] Failed to parse error JSON:", e);
-          try {
-            const text = await res.text();
-            if (text) message = text;
-          } catch (inner) {
-            logWarn("[username-claim] Failed to parse error text:", inner);
-          }
-        }
-        setSubmitError(message);
-        return;
-      }
-
-      // Notify parent (to persist or update local state)
-      onClaim?.(desired);
-      
-      try {
-        await update?.({ username: desired });
-      } catch (e) {
-        logWarn("[username-claim] Session update failed:", e);
-        Sentry.captureException(e, { tags: { area: "username-claim" } });
-      }
-    } catch (err) {
-      logWarn("[username-claim] Submit failed:", err);
-      Sentry.captureException(err, {
-        tags: { area: "username-claim", stage: "submit" },
-      });
-      setSubmitError(err instanceof Error ? err.message : "Network error");
-    } finally {
-      setIsSubmitting(false);
+    const result = await claimUsername(sanitized);
+    if (result.success && result.username) {
+      onSuccess?.(result.username);
     }
   };
 
+  // Get status icon and color
+  const getStatusIcon = () => {
+    if (validation.isChecking) {
+      return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+    }
+    if (validationError) {
+      return <X className="h-4 w-4 text-red-500" />;
+    }
+    if (validation.isAvailable === true) {
+      return <Check className="h-4 w-4 text-green-500" />;
+    }
+    if (validation.isAvailable === false) {
+      return <X className="h-4 w-4 text-red-500" />;
+    }
+    return null;
+  };
+
+  const getStatusMessage = () => {
+    if (validation.isChecking) return 'Checking availability...';
+    if (validationError) return validationError;
+    if (validation.isAvailable === true) return 'Username is available!';
+    if (validation.isAvailable === false) return 'Username is already taken';
+    if (sanitized && sanitized === currentUsername) return 'This is your current username';
+    return null;
+  };
+
+  const statusMessage = getStatusMessage();
+  const canSubmit = isValid && validation.isAvailable === true && !isSubmitting;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
-        <label
-          htmlFor="username"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          Choose a username
-        </label>
-        <input
-          id="username"
-          name="username"
-          type="text"
-          inputMode="text"
-          autoCapitalize="none"
-          autoCorrect="off"
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={MAX_LEN}
-          pattern="[a-z0-9]*"
-          title="Only lowercase letters and numbers"
-          value={username}
-          onChange={(e) => {
-            const raw = e.target.value;
-            const sanitized = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
-            setUsername(sanitized.slice(0, MAX_LEN));
-          }}
-          onPaste={(e) => {
-            e.preventDefault();
-            const pasted = (e.clipboardData.getData("text") || "")
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, "")
-              .slice(0, MAX_LEN);
-            setUsername((prev) => (prev + pasted).slice(0, MAX_LEN));
-          }}
-          placeholder="e.g. skillseeker"
-          {...(hasError
-            ? { "aria-invalid": "true" }
-            : { "aria-invalid": "false" })}
-          aria-describedby={describedBy}
-          aria-errormessage={hasError ? "username-error" : undefined}
-          className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <div
-          id="username-help"
-          className="mt-1 text-xs text-gray-500 dark:text-gray-400"
-        >
-          • 3-20 chars • lowercase letters and numbers only
-        </div>
-        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {normalized.length}/{MAX_LEN}
-        </div>
-      </div>
-
-      {(validationError || submitError) && (
-        <div
-          id="username-error"
-          role="alert"
-          aria-live="polite"
-          className="text-sm text-red-600 dark:text-red-400"
-        >
-          {validationError ?? submitError}
+    <div className="space-y-4">
+      {/* Rate limit info */}
+      {rateLimit && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
+            <Clock className="h-4 w-4" />
+            <span>
+              {rateLimit.remaining} of {rateLimit.total} username changes remaining this month
+              {rateLimit.isNewUser && ' (new user bonus)'}
+            </span>
+          </div>
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white 
-          ${
-            canSubmit
-              ? "bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
-              : "bg-blue-400 cursor-not-allowed"
-          }
-          transition-colors`}
-      >
-        {isSubmitting ? "Claiming..." : "Claim Username"}
-      </button>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            {hasUsername ? 'Change Username' : 'Choose Username'}
+          </label>
+          
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span className="text-gray-500 dark:text-gray-400">@</span>
+            </div>
+            
+            <input
+              id="username"
+              type="text"
+              value={rawInput}
+              onChange={handleInputChange}
+              placeholder="skillseeker"
+              maxLength={20}
+              className={`
+                block w-full pl-8 pr-10 py-2 border rounded-md
+                ${validationError 
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                  : validation.isAvailable === true
+                  ? 'border-green-300 focus:border-green-500 focus:ring-green-500'
+                  : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                }
+                bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                focus:outline-none focus:ring-1
+              `}
+              disabled={isSubmitting}
+            />
+            
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              {getStatusIcon()}
+            </div>
+          </div>
 
-      {/* Preview of what will be submitted */}
-      {normalized && (
-        <div className="text-xs text-gray-600 dark:text-gray-400">
-          Will claim: <span className="font-mono">@{normalized}</span>
+          {/* Character count */}
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {sanitized.length}/20 characters
+          </div>
+
+          {/* Status message */}
+          {statusMessage && (
+            <div className={`mt-2 text-sm flex items-center gap-2 ${
+              validationError || validation.isAvailable === false
+                ? 'text-red-600 dark:text-red-400'
+                : validation.isAvailable === true
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-blue-600 dark:text-blue-400'
+            }`}>
+              {validationError || validation.isAvailable === false ? (
+                <AlertCircle className="h-4 w-4" />
+              ) : validation.isAvailable === true ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {statusMessage}
+            </div>
+          )}
+
+          {/* Guidelines */}
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            • 3-20 characters • lowercase letters and numbers only
+          </div>
         </div>
-      )}
-    </form>
+
+        {/* Preview */}
+        {sanitized && isValid && (
+          <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="text-sm text-gray-600 dark:text-gray-400">Preview:</div>
+            <div className="font-mono text-lg text-gray-900 dark:text-gray-100">
+              @{sanitized}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className={`
+              flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium
+              ${canSubmit
+                ? 'bg-blue-600 hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500'
+                : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              }
+              transition-colors duration-200
+            `}
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Claiming...' : hasUsername ? 'Update Username' : 'Claim Username'}
+          </button>
+          
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }
