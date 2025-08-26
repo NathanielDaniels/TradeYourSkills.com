@@ -8,6 +8,12 @@ export const usernameRateLimit = new Ratelimit({
   analytics: true,
 });
 
+export const emailRateLimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(2, "30 d"), // 2 email changes per 30 days
+  analytics: true,
+});
+
 export const generalApiLimit = new Ratelimit({
   redis: Redis.fromEnv(),
   limiter: Ratelimit.slidingWindow(30, "60 s"), // 30 requests per minute

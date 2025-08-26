@@ -10,6 +10,7 @@ export default function useProfileData() {
   const [skills, setSkills] = useState<{ id: string; name: string }[]>([]);
   const [avatarUrl, setAvatarUrl] = useState("/default-avatar.png");
   const [isSaving, setIsSaving] = useState(false);
+  const [username, setUsername] = useState("");
 
   const { errors, validateBio, validateLocation } = useValidation();
 
@@ -37,6 +38,7 @@ export default function useProfileData() {
           setBio(data.bio || "");
           setLocation(data.location || "");
           setSkills(data.skills || []);
+          setUsername(data.username || "");
         });
     }
   }, [status, session]);
@@ -91,11 +93,12 @@ export default function useProfileData() {
     location,
     setLocation,
     skills,
+    username,
     setSkills,
     avatarUrl,
     updateAvatar,
     saveProfile,
     isSaving,
-    errors
+    errors,
   };
 }

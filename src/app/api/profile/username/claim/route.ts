@@ -1,11 +1,12 @@
-// app/api/profile/username/claim/route.ts
 import { prisma } from "@/lib/prisma";
+import { createVerificationToken, VerificationType } from "@/lib/verification";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { usernameRateLimit, getClientIP } from "@/lib/ratelimit";
 import { sanitizeText } from "@/lib/sanitize";
+import { sendEmail, emailTemplates } from "@/lib/email";
 import * as Sentry from "@sentry/nextjs";
 
 const RESERVED_USERNAMES = [
@@ -50,6 +51,7 @@ const usernameSchema = z
     (name) => !RESERVED_USERNAMES.includes(name.toLowerCase()),
     "Username is reserved"
   );
+
 export async function POST(req: Request) {
   const clientIP = getClientIP(req);
   const session = await getServerSession(authOptions);
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
 
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { username: true, createdAt: true },
+      select: { username: true, createdAt: true, email: true },
     });
 
     if (currentUser?.username === desiredUsername) {
@@ -125,30 +127,77 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if username is already taken
-    const user = await prisma.$transaction(async (tx) => {
-      // Re-check availability within transaction
-      const existingUser = await tx.user.findUnique({
-        where: { username: desiredUsername },
-        select: { id: true },
-      });
-
-      if (existingUser && existingUser.id !== session.user.id) {
-        throw new Error("Username is already taken");
-      }
-
-      return tx.user.update({
-        where: { id: session.user.id },
-        data: { username: desiredUsername },
-        select: { username: true },
-      });
+    const existingUser = await prisma.user.findUnique({
+      where: { username: desiredUsername },
+      select: { id: true },
     });
 
+    if (existingUser && existingUser.id !== session.user.id) {
+      return NextResponse.json(
+        { error: "Username is already taken" },
+        { status: 409 }
+      );
+    }
+
+    const verificationToken = await createVerificationToken({
+      userId: session.user.id,
+      email: currentUser?.email || session.user.email!,
+      type: VerificationType.USERNAME_CHANGE,
+      data: { newUsername: desiredUsername },
+      expiresInMinutes: 15,
+    });
+
+    console.log("🔍 DEBUG - About to send email to:", currentUser?.email);
+
+    const emailResult = await sendEmail(
+      currentUser?.email || session.user.email!,
+      emailTemplates.usernameChangeVerification(
+        desiredUsername,
+        verificationToken.token
+      ),
+      { userId: session.user.id, action: "username-change-verification" }
+    );
+
+    console.log("🔍 DEBUG - Email result:", emailResult);
+
+    if (!emailResult.success) {
+      // Only cleanup if the token was actually saved to database
+      try {
+        // First check if the token exists before trying to delete
+        const existingToken = await prisma.emailVerificationToken.findUnique({
+          where: { token: verificationToken.token },
+          select: { id: true },
+        });
+
+        if (existingToken) {
+          await prisma.emailVerificationToken.delete({
+            where: { token: verificationToken.token },
+          });
+          console.log(
+            "🔍 DEBUG - Cleaned up verification token after email failure"
+          );
+        } else {
+          console.log("🔍 DEBUG - No token to cleanup (not found in database)");
+        }
+      } catch (cleanupError) {
+        console.error("🔍 DEBUG - Failed to cleanup token:", cleanupError);
+        // Don't fail the request because of cleanup issues
+      }
+
+      return NextResponse.json(
+        { error: "Failed to send verification email. Please try again." },
+        { status: 500 }
+      );
+    }
     // Audit log
     const userHash = session.user.id.slice(-8);
     console.log(`Username changed: ***${userHash} -> ${desiredUsername}`);
 
-    return NextResponse.json({ username: user.username });
+    return NextResponse.json({
+      message: "Verification email sent successfully",
+      email: currentUser?.email || session.user.email,
+      expiresIn: 15, // minutes
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const issues = error.issues.map((i) => ({
@@ -162,12 +211,12 @@ export async function POST(req: Request) {
       );
     }
 
-    if (
-      error instanceof Error &&
-      error.message === "Username is already taken"
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
-    }
+    // if (
+    //   error instanceof Error &&
+    //   error.message === "Username is already taken"
+    // ) {
+    //   return NextResponse.json({ error: error.message }, { status: 409 });
+    // }
 
     console.error("Username claim error:", error);
     Sentry.captureException(error, {
