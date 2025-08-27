@@ -42,8 +42,15 @@ export async function POST(req: Request) {
     // Get current user
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { email: true, name: true },
+      select: { email: true, name: true, provider: true },
     });
+
+    if (currentUser?.provider !== "credentials") {
+      return NextResponse.json(
+        { error: "You cannot change your email if you signed in with Google." },
+        { status: 403 }
+      );
+    }
 
     if (!currentUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

@@ -10,6 +10,8 @@ interface ProfileInfoFormProps {
   isSaving: boolean;
   userName: string | null | undefined;
   userEmail: string | null | undefined;
+  userProvider: string | null | undefined;
+  onEmailChange?: (newEmail: string) => Promise<void>;
 }
 
 export default function ProfileInfoForm({
@@ -19,8 +21,11 @@ export default function ProfileInfoForm({
   isSaving,
   userName,
   userEmail,
+  userProvider,
+  onEmailChange,
 }: ProfileInfoFormProps) {
   const [localBio, setLocalBio] = useState(bio);
+  const [localEmail, setLocalEmail] = useState(userEmail || "");
   const [localLocation, setLocalLocation] = useState(location);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -53,7 +58,15 @@ export default function ProfileInfoForm({
   useEffect(() => {
     setLocalBio(bio);
     setLocalLocation(location);
-  }, [bio, location]);
+    setLocalEmail(userEmail || "");
+  }, [bio, location, userEmail]);
+
+  const handleEmailChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onEmailChange) {
+      await onEmailChange(localEmail);
+    }
+  };
 
   return (
     <section
@@ -120,9 +133,38 @@ export default function ProfileInfoForm({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email
               </label>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">
-                {userEmail}
-              </p>
+              {userProvider === "credentials" ? (
+                <form onSubmit={handleEmailChange}>
+                  <input
+                    type="email"
+                    aria-label="New Email"
+                    value={localEmail}
+                    onChange={(e) => setLocalEmail(e.target.value)}
+                    className="text-gray-900 dark:text-gray-100 font-medium w-full"
+                  />
+                  <button
+                    type="submit"
+                    className="mt-2 px-3 py-1 bg-blue-600 text-white rounded"
+                  >
+                    Change Email
+                  </button>
+                </form>
+              ) : (
+                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Email
+                  </label>
+                  <p className="text-gray-900 dark:text-gray-100 font-medium">
+                    {userEmail}
+                  </p>
+                </div>
+                // <p className="text-gray-900 dark:text-gray-100 font-medium">
+                //   {userEmail}{" "}
+                //   <span className="text-xs text-gray-400">
+                //     (Google account)
+                //   </span>
+                // </p>
+              )}
             </div>
           </div>
           <div>
