@@ -78,6 +78,14 @@ function sanitizeInput(data: unknown): unknown {
   return data;
 }
 
+export function maskEmail(email: string): string {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return "***";
+  const maskedName =
+    name.length > 2 ? name[0] + "***" + name[name.length - 1] : name[0] + "***";
+  return `${maskedName}@${domain}`;
+}
+
 export function sanitizeUsername(input: unknown): string {
   const cleaned = sanitizeString(input);
   // Only allow alphanumeric characters for usernames

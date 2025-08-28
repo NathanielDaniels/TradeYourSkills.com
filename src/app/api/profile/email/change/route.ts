@@ -7,6 +7,7 @@ import { emailRateLimit } from "@/lib/ratelimit";
 import { sanitizeEmail } from "@/lib/sanitize";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { maskEmail } from "@/lib/sanitize";
 
 // Email validation schema
 const emailChangeSchema = z.object({
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     // Parse and validate request
     const body = await req.json();
     const safeEmail = sanitizeEmail(body.newEmail);
-    const { newEmail } = emailChangeSchema.parse(body);
+    const { newEmail } = emailChangeSchema.parse({ newEmail: safeEmail });
 
     // Get current user
     const currentUser = await prisma.user.findUnique({
@@ -73,15 +74,17 @@ export async function POST(req: Request) {
     });
 
     if (existingUser && existingUser.id !== session.user.id) {
-      return NextResponse.json(
-        { error: "This email address is already in use" },
-        { status: 409 }
-      );
+      return NextResponse.json({
+        message:
+          "If this email can be used, you will receive a verification email shortly.",
+        newEmail: newEmail,
+        expiresIn: 30,
+      });
     }
 
     console.log(
       "🔍 DEBUG - About to send email change verification to:",
-      newEmail
+      maskEmail(newEmail)
     );
 
     // Create verification token using your existing system
@@ -138,7 +141,7 @@ export async function POST(req: Request) {
     // Audit log
     const userHash = session.user.id.slice(-8);
     console.log(
-      `Email change verification sent: ***${userHash} -> ${newEmail}`
+      `Email change verification sent: ***${userHash} -> ${maskEmail(newEmail)}`
     );
 
     return NextResponse.json({
