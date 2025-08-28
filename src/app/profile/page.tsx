@@ -5,6 +5,7 @@ import UsernameManager from "@/components/profile/UsernameManager";
 import SkillsManager from "@/components/profile/SkillsManager";
 import useProfileData from "@/hooks/useProfileData";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 export default function ProfilePage() {
   const {
@@ -13,12 +14,40 @@ export default function ProfilePage() {
     bio,
     location,
     skills,
+    username,
     setSkills,
     avatarUrl,
     updateAvatar,
     saveProfile,
     isSaving,
   } = useProfileData();
+
+  const userProvider =
+    typeof session?.user?.provider === "string"
+      ? session.user.provider
+      : "credentials";
+
+  const handleEmailChange = async (newEmail: string) => {
+    try {
+      const res = await fetch("/api/profile/email/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newEmail }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Show error to user (e.g., rate limit, invalid email, etc.)
+        toast.error(data.error || "Failed to request email change.");
+        return;
+      }
+
+      // Show success message (e.g., "Verification email sent!")
+      toast.success("A verification email has been sent to your new address.");
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+    }
+  };
 
   if (status === "loading")
     return <p className="text-center py-10">Loading...</p>;
@@ -47,14 +76,19 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <AvatarUploader avatarUrl={avatarUrl} onUpload={updateAvatar} />
-          <UsernameManager />
+          <UsernameManager
+            currentUsername={username} // Pass fresh username from API
+            userEmail={session?.user?.email || undefined}
+          />
           <ProfileInfoForm
             bio={bio}
             location={location}
             onSave={saveProfile}
             userName={session?.user?.name || ""}
             userEmail={session?.user?.email || ""}
+            userProvider={userProvider}
             isSaving={isSaving}
+            onEmailChange={handleEmailChange}
           />
           <SkillsManager skills={skills} onSkillsUpdate={setSkills} />
         </div>

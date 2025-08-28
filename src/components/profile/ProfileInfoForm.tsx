@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useValidation } from "@/hooks/useValidation";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 
 interface ProfileInfoFormProps {
   bio: string;
@@ -11,7 +12,9 @@ interface ProfileInfoFormProps {
   userName: string | null | undefined;
   userEmail: string | null | undefined;
   userProvider: string | null | undefined;
-  onEmailChange?: (newEmail: string) => Promise<void>;
+  onEmailChange?: (
+    newEmail: string
+  ) => Promise<{ error?: string; message?: string } | void>;
 }
 
 export default function ProfileInfoForm({
@@ -61,10 +64,26 @@ export default function ProfileInfoForm({
     setLocalEmail(userEmail || "");
   }, [bio, location, userEmail]);
 
-  const handleEmailChange = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const emailChanged =
+    userProvider === "credentials" &&
+    localEmail.trim() &&
+    localEmail.trim() !== (userEmail || "").trim();
+
+  // Toast wrapper for email change
+  const handleEmailChangeClick = async () => {
     if (onEmailChange) {
-      await onEmailChange(localEmail);
+      try {
+        const result = await onEmailChange(localEmail);
+        if (result?.error) {
+          toast.error(result.error);
+        } else if (result?.message) {
+          toast.success(result.message);
+        }
+      } catch (err: any) {
+        toast.error(
+          err?.message || "Failed to request email change. Try again."
+        );
+      }
     }
   };
 
@@ -129,43 +148,45 @@ export default function ProfileInfoForm({
                 {userName || "Not provided"}
               </p>
             </div>
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email
-              </label>
-              {userProvider === "credentials" ? (
-                <form onSubmit={handleEmailChange}>
+            {userProvider === "credentials" ? (
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <label
+                  htmlFor="email-input"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Email
+                </label>
+                <div className="flex flex-row lg:flex-col lg:items-stretch gap-2 w-full max-w-full">
                   <input
+                    id="email-input"
                     type="email"
                     aria-label="New Email"
                     value={localEmail}
                     onChange={(e) => setLocalEmail(e.target.value)}
-                    className="text-gray-900 dark:text-gray-100 font-medium w-full"
+                    placeholder="Your city or region..."
+                    className="flex-1 min-w-0 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
-                  <button
-                    type="submit"
-                    className="mt-2 px-3 py-1 bg-blue-600 text-white rounded"
-                  >
-                    Change Email
-                  </button>
-                </form>
-              ) : (
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Email
-                  </label>
-                  <p className="text-gray-900 dark:text-gray-100 font-medium">
-                    {userEmail}
-                  </p>
+                  {emailChanged && (
+                    <button
+                      type="button"
+                      onClick={handleEmailChangeClick}
+                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition whitespace-nowrap w-auto lg:w-full"
+                    >
+                      Change Email
+                    </button>
+                  )}
                 </div>
-                // <p className="text-gray-900 dark:text-gray-100 font-medium">
-                //   {userEmail}{" "}
-                //   <span className="text-xs text-gray-400">
-                //     (Google account)
-                //   </span>
-                // </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Email
+                </label>
+                <p className="text-gray-900 dark:text-gray-100 font-medium">
+                  {userEmail}
+                </p>
+              </div>
+            )}
           </div>
           <div>
             <label

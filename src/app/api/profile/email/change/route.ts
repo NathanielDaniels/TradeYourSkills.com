@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail, emailTemplates } from "@/lib/email";
 import { createVerificationToken, VerificationType } from "@/lib/verification";
 import { emailRateLimit } from "@/lib/ratelimit";
+import { sanitizeEmail } from "@/lib/sanitize";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
 
     // Parse and validate request
     const body = await req.json();
+    const safeEmail = sanitizeEmail(body.newEmail);
     const { newEmail } = emailChangeSchema.parse(body);
 
     // Get current user
