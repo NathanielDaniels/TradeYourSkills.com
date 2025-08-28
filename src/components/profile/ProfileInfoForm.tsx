@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useValidation } from "@/hooks/useValidation";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 
 interface ProfileInfoFormProps {
   bio: string;
@@ -10,6 +11,10 @@ interface ProfileInfoFormProps {
   isSaving: boolean;
   userName: string | null | undefined;
   userEmail: string | null | undefined;
+  userProvider: string | null | undefined;
+  onEmailChange?: (
+    newEmail: string
+  ) => Promise<{ error?: string; message?: string } | void>;
 }
 
 export default function ProfileInfoForm({
@@ -19,8 +24,11 @@ export default function ProfileInfoForm({
   isSaving,
   userName,
   userEmail,
+  userProvider,
+  onEmailChange,
 }: ProfileInfoFormProps) {
   const [localBio, setLocalBio] = useState(bio);
+  const [localEmail, setLocalEmail] = useState(userEmail || "");
   const [localLocation, setLocalLocation] = useState(location);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -53,7 +61,31 @@ export default function ProfileInfoForm({
   useEffect(() => {
     setLocalBio(bio);
     setLocalLocation(location);
-  }, [bio, location]);
+    setLocalEmail(userEmail || "");
+  }, [bio, location, userEmail]);
+
+  const emailChanged =
+    userProvider === "credentials" &&
+    localEmail.trim() &&
+    localEmail.trim() !== (userEmail || "").trim();
+
+  // Toast wrapper for email change
+  const handleEmailChangeClick = async () => {
+    if (onEmailChange) {
+      try {
+        const result = await onEmailChange(localEmail);
+        if (result?.error) {
+          toast.error(result.error);
+        } else if (result?.message) {
+          toast.success(result.message);
+        }
+      } catch (err: any) {
+        toast.error(
+          err?.message || "Failed to request email change. Try again."
+        );
+      }
+    }
+  };
 
   return (
     <section
@@ -116,14 +148,45 @@ export default function ProfileInfoForm({
                 {userName || "Not provided"}
               </p>
             </div>
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email
-              </label>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">
-                {userEmail}
-              </p>
-            </div>
+            {userProvider === "credentials" ? (
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <label
+                  htmlFor="email-input"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Email
+                </label>
+                <div className="flex flex-row lg:flex-col lg:items-stretch gap-2 w-full max-w-full">
+                  <input
+                    id="email-input"
+                    type="email"
+                    aria-label="New Email"
+                    value={localEmail}
+                    onChange={(e) => setLocalEmail(e.target.value)}
+                    placeholder="Your city or region..."
+                    className="flex-1 min-w-0 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  />
+                  {emailChanged && (
+                    <button
+                      type="button"
+                      onClick={handleEmailChangeClick}
+                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition whitespace-nowrap w-auto lg:w-full"
+                    >
+                      Change Email
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Email
+                </label>
+                <p className="text-gray-900 dark:text-gray-100 font-medium">
+                  {userEmail}
+                </p>
+              </div>
+            )}
           </div>
           <div>
             <label

@@ -1,20 +1,55 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
-import EmailProvider from "next-auth/providers/email";
+// import EmailProvider from "next-auth/providers/email";
+import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import * as Sentry from "@sentry/nextjs";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
+  pages: {
+    signIn: "/auth/signin",
+  },
   adapter: PrismaAdapter(prisma),
   providers: [
-    EmailProvider({
-      server: process.env.EMAIL_SERVER,
-      from: process.env.EMAIL_FROM,
-    }),
+    // EmailProvider({
+    //   server: process.env.EMAIL_SERVER,
+    //   from: process.env.EMAIL_FROM,
+    // }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+        if (!user || !user.password) return null;
+
+        // Use bcrypt to compare passwords
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+        if (!isValid) return null;
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          provider: "credentials",
+        };
+      },
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
@@ -23,18 +58,21 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async session({ session, token }) {
-      // Ensure user ID is added to session
-      // if (session.user && token.sub) {
-      //   session.user.id = token.sub;
-      // }
-
-      if (session.user) {
-        if (token.sub) session.user.id = token.sub;
-        // propagate token picture to session user.image
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
         session.user.image =
           ((token as any).picture as string) ?? session.user.image ?? null;
         session.user.username =
           ((token as any).username as string | null) ?? null;
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { provider: true },
+          });
+          session.user.provider = dbUser?.provider ?? "credentials";
+        } catch (e) {
+          session.user.provider = "credentials"; // fallback if DB fails
+        }
       }
       return session;
     },
