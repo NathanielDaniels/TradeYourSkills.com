@@ -94,11 +94,11 @@ export default function ProfileInfoForm({
     >
       <header className="flex items-center mb-6">
         <div
-          className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-4"
+          className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-4"
           aria-hidden="true"
         >
           <svg
-            className="w-6 h-6 text-blue-600 dark:text-blue-400"
+            className="w-5 h-5 text-blue-600 dark:text-blue-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -140,16 +140,16 @@ export default function ProfileInfoForm({
         <fieldset className="space-y-6">
           <legend className="sr-only">Personal Information</legend>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="rounded-lg">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Name
               </label>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">
+              <p className="p-3 border rounded-lg border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium">
                 {userName || "Not provided"}
               </p>
             </div>
             {userProvider === "credentials" ? (
-              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <div className="rounded-lg">
                 <label
                   htmlFor="email-input"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
@@ -182,7 +182,7 @@ export default function ProfileInfoForm({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Email
                 </label>
-                <p className="text-gray-900 dark:text-gray-100 font-medium">
+                <p className="p-4 border rounded-lg border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium">
                   {userEmail}
                 </p>
               </div>
@@ -253,13 +253,44 @@ export default function ProfileInfoForm({
             )}
           </div>
           <footer className="pt-4">
-            <button
+            {/* <button
               type="submit"
               disabled={isSaving}
               className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSaving ? "Saving..." : "Save Changes"}
-            </button>
+            </button> */}
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                className="flex justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 rounded-lg"
+                disabled={isSaving}
+              >
+                {isSaving && (
+                  <svg
+                    className="mx-2 h-4 w-4 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8H4z"
+                    />
+                  </svg>
+                )}
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </footer>
         </fieldset>
       </form>
