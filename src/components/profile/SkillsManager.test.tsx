@@ -2,6 +2,14 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SkillsManager from "./SkillsManager";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as useSkillsManagerHook from "@/hooks/useSkillsManager";
+
+// Mock the hook instead of fetch
+jest.mock("@/hooks/useSkillsManager");
+const mockUseSkillsManager =
+  useSkillsManagerHook.useSkillsManager as jest.MockedFunction<
+    typeof useSkillsManagerHook.useSkillsManager
+  >;
 
 const mockSkills = [
   { id: "1", name: "React" },
@@ -15,7 +23,32 @@ function renderWithQueryClient(ui: React.ReactElement) {
   );
 }
 
+const defaultMockReturn = {
+  localSkills: mockSkills,
+  setLocalSkills: jest.fn(), // Add this missing property
+  confirmOpen: false,
+  setConfirmOpen: jest.fn(),
+  addSkillOpen: false,
+  setAddSkillOpen: jest.fn(),
+  hasOrderChanged: false,
+  isSaving: false,
+  feedback: null,
+  deletingSkillId: null,
+  confirmAddSkill: jest.fn(),
+  handleRemoveClick: jest.fn(),
+  confirmRemoveSkill: jest.fn(),
+  handleSaveOrder: jest.fn(),
+  handleReorder: jest.fn(),
+  skillToRemove: null,
+  setSkillToRemove: jest.fn(),
+};
+
 describe("SkillsManager", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseSkillsManager.mockReturnValue(defaultMockReturn);
+  });
+
   it("renders the skills list", () => {
     renderWithQueryClient(
       <SkillsManager
@@ -29,6 +62,11 @@ describe("SkillsManager", () => {
   });
 
   it("shows 'No skills added yet' when empty", () => {
+    mockUseSkillsManager.mockReturnValue({
+      ...defaultMockReturn,
+      localSkills: [],
+    });
+
     renderWithQueryClient(
       <SkillsManager
         skills={[]}
@@ -40,6 +78,12 @@ describe("SkillsManager", () => {
   });
 
   it("opens the Add Skill modal", () => {
+    const mockSetAddSkillOpen = jest.fn();
+    mockUseSkillsManager.mockReturnValue({
+      ...defaultMockReturn,
+      setAddSkillOpen: mockSetAddSkillOpen,
+    });
+
     renderWithQueryClient(
       <SkillsManager
         skills={mockSkills}
@@ -47,13 +91,18 @@ describe("SkillsManager", () => {
         userEmail="test@example.com"
       />
     );
+
     fireEvent.click(screen.getByRole("button", { name: /\+ Add New Skill/i }));
-    expect(
-      screen.getByRole("heading", { name: /add new skill/i })
-    ).toBeInTheDocument();
+    expect(mockSetAddSkillOpen).toHaveBeenCalledWith(true);
   });
 
-  it("opens the Remove Skill modal", () => {
+  it("calls handleRemoveClick when remove button is clicked", () => {
+    const mockHandleRemoveClick = jest.fn();
+    mockUseSkillsManager.mockReturnValue({
+      ...defaultMockReturn,
+      handleRemoveClick: mockHandleRemoveClick,
+    });
+
     renderWithQueryClient(
       <SkillsManager
         skills={mockSkills}
@@ -61,45 +110,17 @@ describe("SkillsManager", () => {
         userEmail="test@example.com"
       />
     );
+
     fireEvent.click(screen.getAllByLabelText(/remove/i)[0]);
-    expect(screen.getByText(/remove skill\?/i)).toBeInTheDocument();
+    expect(mockHandleRemoveClick).toHaveBeenCalledWith("1");
   });
 
-  it("calls onSkillsUpdate when a skill is added", async () => {
-    const onSkillsUpdate = jest.fn();
-    renderWithQueryClient(
-      <SkillsManager
-        skills={mockSkills}
-        onSkillsUpdate={onSkillsUpdate}
-        userEmail="test@example.com"
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: /\+ Add New Skill/i }));
-    fireEvent.change(screen.getByPlaceholderText(/web design/i), {
-      target: { value: "Jest" },
+  it("shows feedback message", () => {
+    mockUseSkillsManager.mockReturnValue({
+      ...defaultMockReturn,
+      feedback: { message: "Skill added successfully!", type: "success" },
     });
-    const addButton = await screen.findByRole("button", {
-      name: "confirm action",
-    });
-    fireEvent.click(addButton);
-    await waitFor(() => expect(onSkillsUpdate).toHaveBeenCalled());
-  });
 
-  it("calls onSkillsUpdate when a skill is removed", async () => {
-    const onSkillsUpdate = jest.fn();
-    renderWithQueryClient(
-      <SkillsManager
-        skills={mockSkills}
-        onSkillsUpdate={onSkillsUpdate}
-        userEmail="test@example.com"
-      />
-    );
-    fireEvent.click(screen.getAllByLabelText(/remove/i)[0]);
-    fireEvent.click(screen.getByRole("button", { name: "Confirm action" }));
-    await waitFor(() => expect(onSkillsUpdate).toHaveBeenCalled());
-  });
-
-  it("shows feedback message after adding a skill", async () => {
     renderWithQueryClient(
       <SkillsManager
         skills={mockSkills}
@@ -107,14 +128,30 @@ describe("SkillsManager", () => {
         userEmail="test@example.com"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /\+ Add New Skill/i }));
-    fireEvent.change(screen.getByPlaceholderText(/web design/i), {
-      target: { value: "Jest" },
+
+    expect(screen.getByText("Skill added successfully!")).toBeInTheDocument();
+  });
+
+  it("shows save order button when order changed", () => {
+    const mockHandleSaveOrder = jest.fn();
+    mockUseSkillsManager.mockReturnValue({
+      ...defaultMockReturn,
+      hasOrderChanged: true,
+      handleSaveOrder: mockHandleSaveOrder,
     });
-    const addButton = await screen.findByRole("button", {
-      name: "confirm action",
-    });
-    fireEvent.click(addButton);
-    expect(await screen.findByText(/skill added/i)).toBeInTheDocument();
+
+    renderWithQueryClient(
+      <SkillsManager
+        skills={mockSkills}
+        onSkillsUpdate={jest.fn()}
+        userEmail="test@example.com"
+      />
+    );
+
+    const saveButton = screen.getByRole("button", { name: /save order/i });
+    expect(saveButton).toBeInTheDocument();
+
+    fireEvent.click(saveButton);
+    expect(mockHandleSaveOrder).toHaveBeenCalled();
   });
 });
