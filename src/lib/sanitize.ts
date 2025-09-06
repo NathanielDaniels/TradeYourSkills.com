@@ -81,10 +81,18 @@ function sanitizeInput(data: unknown): unknown {
 export function maskEmail(email: string): string {
   const [name, domain] = email.split("@");
   if (!name || !domain) return "***";
-  const maskedName =
-    name.length > 2 ? name[0] + "***" + name[name.length - 1] : name[0] + "***";
+  let maskedName: string;
+  if (name.length === 1) {
+    maskedName = name[0] + "***";
+  } else {
+    maskedName = name[0] + "***" + name[name.length - 1];
+  }
   return `${maskedName}@${domain}`;
 }
+//   const maskedName =
+//     name.length > 2 ? name[0] + "***" + name[name.length - 1] : name[0] + "***";
+//   return `${maskedName}@${domain}`;
+// }
 
 export function sanitizeUsername(input: unknown): string {
   const cleaned = sanitizeString(input);
