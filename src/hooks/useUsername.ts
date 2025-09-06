@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 import { z } from "zod";

@@ -49,7 +49,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (status === "loading" || !bio || !location || !username || !skills)
+  if (status === "loading")
     return (
       <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -183,7 +183,11 @@ export default function ProfilePage() {
             isSaving={isSaving}
             onEmailChange={handleEmailChange}
           />
-          <SkillsManager skills={skills} onSkillsUpdate={setSkills} />
+          <SkillsManager
+            skills={skills}
+            onSkillsUpdate={setSkills}
+            userEmail={session?.user?.email || undefined}
+          />
         </div>
       </div>
     </main>
