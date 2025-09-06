@@ -1,10 +1,10 @@
 "use client";
+import React from "react";
 import ConfirmModal from "@/components/ConfirmModal";
 import InputModal from "@/components/InputModal";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useSkillsManager } from "@/hooks/useSkillsManager";
 import { useValidation } from "@/hooks/useValidation";
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Skill {
@@ -15,12 +15,15 @@ interface Skill {
 interface SkillsManagerProps {
   skills: Skill[];
   onSkillsUpdate: (skills: Skill[]) => void;
+  userEmail: string | undefined;
 }
 
 export default function SkillsManager({
   skills,
   onSkillsUpdate,
+  userEmail,
 }: SkillsManagerProps) {
+  // All state and handlers from your custom hook
   const {
     localSkills,
     confirmOpen,
@@ -36,12 +39,9 @@ export default function SkillsManager({
     confirmRemoveSkill,
     handleSaveOrder,
     handleReorder,
-  } = useSkillsManager(skills, onSkillsUpdate);
+  } = useSkillsManager(skills, onSkillsUpdate, userEmail);
 
   const { errors } = useValidation();
-  const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(
-    null
-  );
 
   const { getDragProps, getDragStyles } = useDragAndDrop({
     items: localSkills,
@@ -50,13 +50,7 @@ export default function SkillsManager({
   });
 
   const onSaveOrderClick = async () => {
-    setSaveStatus(null);
-    const result = await handleSaveOrder();
-    if (result) setSaveStatus("success");
-    else setSaveStatus("error");
-
-    // Clear status message after 3 seconds
-    setTimeout(() => setSaveStatus(null), 3000);
+    await handleSaveOrder();
   };
 
   return (
@@ -123,15 +117,6 @@ export default function SkillsManager({
                 "Save Order"
               )}
             </button>
-          )}
-
-          {saveStatus === "success" && (
-            <span className="text-green-600 text-xs mt-1">Order saved!</span>
-          )}
-          {saveStatus === "error" && (
-            <span className="text-red-600 text-xs mt-1">
-              Failed to save order. Try again.
-            </span>
           )}
         </div>
         <AnimatePresence>
