@@ -16,19 +16,19 @@ jobs:
         with:
           node-version: 24
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8
+      - name: Install only required dependencies
+        run: |
+          npm install --no-package-lock imap mailparser node-fetch@2 dotenv typescript @types/node
 
-      - name: Generate Prisma client
-        run: pnpm exec prisma generate
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build forwarder
-        run: pnpm run imap-forwarder:build
+      - name: Compile TypeScript
+        run: |
+          npx tsc src/app/scripts/imap-forwarder/index.ts \
+            --outDir dist \
+            --target es2020 \
+            --module commonjs \
+            --esModuleInterop \
+            --skipLibCheck \
+            --moduleResolution node
 
       - name: Run forwarder (single pass)
         env:
@@ -38,4 +38,46 @@ jobs:
           INBOUND_WEBHOOK_SECRET: ${{ secrets.INBOUND_WEBHOOK_SECRET }}
           POLL_INTERVAL_MS: "30000"
           NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
-        run: node dist/app/scripts/imap-forwarder/index.js
+        run: node dist/src/app/scripts/imap-forwarder/index.js
+        
+# name: IMAP Forwarder (scheduled)
+
+# on:
+#   schedule:
+#     - cron: "*/5 * * * *" # every 5 minutes
+#   workflow_dispatch: {} # allows manual triggering
+
+# jobs:
+#   forward:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Setup Node
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: 24
+
+#       - name: Setup pnpm
+#         uses: pnpm/action-setup@v4
+#         with:
+#           version: 8
+
+#       - name: Generate Prisma client
+#         run: pnpm exec prisma generate
+
+#       - name: Install dependencies
+#         run: pnpm install --no-frozen-lockfile
+
+#       - name: Build forwarder
+#         run: pnpm run imap-forwarder:build
+
+#       - name: Run forwarder (single pass)
+#         env:
+#           GMAIL_USER: ${{ secrets.GMAIL_USER }}
+#           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+#           INBOUND_WEBHOOK_URL: https://trademyskills.com/api/email/inbound
+#           INBOUND_WEBHOOK_SECRET: ${{ secrets.INBOUND_WEBHOOK_SECRET }}
+#           POLL_INTERVAL_MS: "30000"
+#           NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+#         run: node dist/app/scripts/imap-forwarder/index.js
