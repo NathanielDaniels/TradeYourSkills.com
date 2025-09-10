@@ -108,13 +108,20 @@ export default function HomePage() {
       if (res.ok) {
         toast.success("You're on the list — welcome!");
         form.reset();
+      } else if (res.status === 409) {
+        // Email already registered
+        toast.error(
+          "This email is already registered. Check your inbox for the welcome email."
+        );
       } else {
-        toast.error("Submission failed. Please try again.");
-        console.error("Form submit non-OK:", await res.text());
+        const payload = await res.json().catch(() => ({}));
+        const msg = payload?.error || "Submission failed. Please try again.";
+        toast.error(msg);
+        console.error("Form submit non-OK:", payload);
       }
     } catch (err) {
       console.error("Submission error:", err);
-      toast.error("reCAPTCHA failed to load or unexpected error. Try again.");
+      toast.error("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
