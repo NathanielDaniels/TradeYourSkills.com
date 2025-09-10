@@ -24,6 +24,7 @@ jobs:
         run: |
           npx tsc src/app/scripts/imap-forwarder/index.ts \
             --outDir dist \
+            --rootDir src \
             --target es2020 \
             --module commonjs \
             --esModuleInterop \
@@ -38,8 +39,7 @@ jobs:
           INBOUND_WEBHOOK_SECRET: ${{ secrets.INBOUND_WEBHOOK_SECRET }}
           POLL_INTERVAL_MS: "30000"
           NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
-        run: node dist/src/app/scripts/imap-forwarder/index.js
-        
+        run: node dist/app/scripts/imap-forwarder/index.js
 # name: IMAP Forwarder (scheduled)
 
 # on:
